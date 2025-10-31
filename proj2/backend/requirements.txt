@@ -1,0 +1,29 @@
+# Core FastAPI
+fastapi==0.104.1
+uvicorn==0.24.0
+python-multipart==0.0.6  # Required for file uploads
+
+# LLM and NLP
+transformers==4.35.0
+torch==2.1.0
+sentence-transformers==2.2.2
+nltk==3.8.1
+
+# Vector DB and RAG
+chromadb==0.4.15
+
+# Database
+sqlite3  # Built-in with Python
+
+# Document Processing
+PyPDF2==3.0.1  # PDF parsing
+python-docx==1.1.0  # DOCX parsing
+
+# Export utilities (already in your code)
+# python-docx already listed above
+
+# Data handling
+pydantic==2.5.0
+
+# Additional utilities
+python-dateutil==2.8.2
