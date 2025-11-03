@@ -284,6 +284,7 @@ class UseCaseEstimator:
         details['sentences_with_actions'] = sentences_with_actions
         
         return min_estimate, max_estimate, details
+    
 
 
 def get_smart_max_use_cases(text: str) -> int:

@@ -22,6 +22,46 @@ function Extraction() {
   const [uploading, setUploading] = useState(false);
   const [results, setResults] = useState(null);
 
+  // Normalize backend response to a consistent shape the UI can render
+  const normalizeExtractionResponse = (data) => {
+    const resultsArray = Array.isArray(data?.results)
+      ? data.results
+      : Array.isArray(data?.generated_use_cases)
+      ? data.generated_use_cases
+      : [];
+
+    const normalizedResults = resultsArray.map((uc) => ({
+      status: uc.status || 'stored',
+      id: uc.id,
+      title: uc.title || 'Untitled',
+      preconditions: Array.isArray(uc.preconditions) ? uc.preconditions : [],
+      // Support singular main_flow by wrapping it
+      main_flows: Array.isArray(uc.main_flows)
+        ? uc.main_flows
+        : Array.isArray(uc.main_flow)
+        ? [uc.main_flow]
+        : [],
+      // Keep original singular for other consumers, but UI uses main_flows above
+      main_flow: Array.isArray(uc.main_flow) ? uc.main_flow : [],
+      sub_flows: Array.isArray(uc.sub_flows) ? uc.sub_flows : [],
+      alternate_flows: Array.isArray(uc.alternate_flows) ? uc.alternate_flows : [],
+      outcomes: Array.isArray(uc.outcomes) ? uc.outcomes : [],
+      stakeholders: Array.isArray(uc.stakeholders) ? uc.stakeholders : [],
+    }));
+
+    return {
+      message: data?.message,
+      session_id: data?.session_id,
+      extracted_count: Number.isFinite(data?.extracted_count) ? data.extracted_count : normalizedResults.length,
+      stored_count: data?.stored_count ?? 0,
+      duplicate_count: data?.duplicate_count ?? 0,
+      processing_time_seconds: data?.processing_time_seconds ?? undefined,
+      validation_results: Array.isArray(data?.validation_results) ? data.validation_results : [],
+      extraction_method: data?.extraction_method,
+      results: normalizedResults,
+    };
+  };
+
   // Handle text extraction
   const handleTextExtraction = async () => {
     if (!rawText.trim()) {
@@ -39,8 +79,9 @@ function Extraction() {
         domain: domain,
       });
 
-      setResults(response.data);
-      setCurrentSession(response.data.session_id);
+      const normalized = normalizeExtractionResponse(response.data);
+      setResults(normalized);
+      setCurrentSession(normalized.session_id);
       
       toast.success(
         `✅ Extracted ${response.data.extracted_count} use cases in ${response.data.processing_time_seconds}s!`
@@ -65,9 +106,9 @@ function Extraction() {
 
     try {
       const response = await api.extractFromDocument(formData);
-      
-      setResults(response.data);
-      setCurrentSession(response.data.session_id);
+      const normalized = normalizeExtractionResponse(response.data);
+      setResults(normalized);
+      setCurrentSession(normalized.session_id);
       
       toast.success(
         `✅ Extracted ${response.data.extracted_count} use cases from ${file.name}!`
@@ -257,6 +298,111 @@ function Extraction() {
                               >
                                 {uc.status === 'stored' ? '✅ Stored' : '🔄 Duplicate'}
                               </span>
+
+                              {/* Details Preview */}
+                              <div className="mt-3 space-y-3">
+                                {Array.isArray(uc.preconditions) && uc.preconditions.length > 0 && (
+                                  <div>
+                                    <div className="text-xs font-semibold text-gray-700">Preconditions</div>
+                                    <ul className="list-disc list-inside text-xs text-gray-700">
+                                      {uc.preconditions.map((p, i) => (
+                                        <li key={i}>{p}</li>
+                                      ))}
+                                    </ul>
+                                  </div>
+                                )}
+
+                                {(() => {
+                                  const flows = Array.isArray(uc.main_flows)
+                                    ? uc.main_flows
+                                    : Array.isArray(uc.main_flow)
+                                    ? [uc.main_flow]
+                                    : [];
+                                  return flows.length > 0 ? (
+                                    <div>
+                                      <div className="text-xs font-semibold text-gray-700">Main Flows</div>
+                                      <div className="space-y-1 text-xs text-gray-700">
+                                        {flows.map((flow, fi) => (
+                                          <div key={fi}>
+                                            {Array.isArray(flow) ? (
+                                              <ol className="list-decimal list-inside">
+                                                {flow.map((s, si) => (
+                                                  <li key={si}>{s}</li>
+                                                ))}
+                                              </ol>
+                                            ) : typeof flow === 'object' && flow !== null && Array.isArray(flow.steps) ? (
+                                              <ol className="list-decimal list-inside">
+                                                {flow.steps.map((s, si) => (
+                                                  <li key={si}>{s}</li>
+                                                ))}
+                                              </ol>
+                                            ) : (
+                                              <div>• {String(flow)}</div>
+                                            )}
+                                          </div>
+                                        ))}
+                                      </div>
+                                    </div>
+                                  ) : null;
+                                })()}
+
+                                {Array.isArray(uc.sub_flows) && uc.sub_flows.length > 0 && (
+                                  <div>
+                                    <div className="text-xs font-semibold text-gray-700">Sub Flows</div>
+                                    <div className="space-y-1 text-xs text-gray-700">
+                                      {uc.sub_flows.map((sub, si) => (
+                                        <div key={si}>
+                                          {typeof sub?.title === 'string' && (
+                                            <div className="font-medium text-gray-700">{sub.title}</div>
+                                          )}
+                                          {Array.isArray(sub?.steps) ? (
+                                            <ol className="list-decimal list-inside">
+                                              {sub.steps.map((s, i) => (
+                                                <li key={i}>{s}</li>
+                                              ))}
+                                            </ol>
+                                          ) : Array.isArray(sub) ? (
+                                            <ol className="list-decimal list-inside">
+                                              {sub.map((s, i) => (
+                                                <li key={i}>{s}</li>
+                                              ))}
+                                            </ol>
+                                          ) : null}
+                                        </div>
+                                      ))}
+                                    </div>
+                                  </div>
+                                )}
+
+                                {Array.isArray(uc.alternate_flows) && uc.alternate_flows.length > 0 && (
+                                  <div>
+                                    <div className="text-xs font-semibold text-gray-700">Alternate Flows</div>
+                                    <ul className="list-disc list-inside text-xs text-gray-700">
+                                      {uc.alternate_flows.map((alt, i) => (
+                                        <li key={i}>{alt}</li>
+                                      ))}
+                                    </ul>
+                                  </div>
+                                )}
+
+                                {Array.isArray(uc.outcomes) && uc.outcomes.length > 0 && (
+                                  <div>
+                                    <div className="text-xs font-semibold text-gray-700">Outcomes</div>
+                                    <ul className="list-disc list-inside text-xs text-gray-700">
+                                      {uc.outcomes.map((o, i) => (
+                                        <li key={i}>{o}</li>
+                                      ))}
+                                    </ul>
+                                  </div>
+                                )}
+
+                                {Array.isArray(uc.stakeholders) && uc.stakeholders.length > 0 && (
+                                  <div>
+                                    <div className="text-xs font-semibold text-gray-700">Stakeholders</div>
+                                    <div className="text-xs text-gray-700">{uc.stakeholders.join(', ')}</div>
+                                  </div>
+                                )}
+                              </div>
                             </div>
                           </div>
                         </div>
