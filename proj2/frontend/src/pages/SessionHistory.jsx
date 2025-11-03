@@ -77,10 +77,7 @@ function SessionHistory() {
                       Session ID
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Project
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Domain
+                      Session Title
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Created
@@ -103,12 +100,7 @@ function SessionHistory() {
                       </td>
                       <td className="px-6 py-4">
                         <div className="text-sm font-medium text-gray-900">
-                          {session.project_context || 'Untitled'}
-                        </div>
-                      </td>
-                      <td className="px-6 py-4">
-                        <div className="text-sm text-gray-600">
-                          {session.domain || 'Not specified'}
+                          {session.session_title || session.project_context || 'Untitled Session'}
                         </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">

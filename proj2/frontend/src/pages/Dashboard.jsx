@@ -113,11 +113,8 @@ function Dashboard() {
                     <div className="flex justify-between items-start">
                       <div>
                         <h3 className="font-semibold text-gray-900">
-                          {session.project_context || 'Untitled Session'}
+                          {session.session_title || session.project_context || 'Untitled Session'}
                         </h3>
-                        <p className="text-sm text-gray-500">
-                          Domain: {session.domain || 'Not specified'}
-                        </p>
                         <p className="text-xs text-gray-400 mt-1">
                           Last active: {formatDate(session.last_active)}
                         </p>

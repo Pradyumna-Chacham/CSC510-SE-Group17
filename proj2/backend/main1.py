@@ -1856,9 +1856,147 @@ def clear_session(session_id: str):
     return {"message": f"Session {session_id} cleared successfully"}
 
 
+def generate_session_title(first_user_message: str, max_length: int = 50) -> str:
+    """
+    Generate a concise, meaningful session title from the first user message.
+    
+    Strategy:
+    1. Use LLM to generate a smart summary (4-7 words)
+    2. Fallback to keyword extraction if LLM fails
+    3. Handle both text input and file uploads
+    """
+    if not first_user_message:
+        return "New Session"
+
+    text = first_user_message.strip()
+    
+    # Handle file uploads specially
+    if text.startswith("Uploaded document:"):
+        filename = text.replace("Uploaded document:", "").strip()
+        # Extract base filename without extension
+        base_name = filename.rsplit('.', 1)[0] if '.' in filename else filename
+        # Clean and format
+        clean_name = base_name.replace('_', ' ').replace('-', ' ').title()
+        return clean_name[:max_length] if len(clean_name) <= max_length else clean_name[:max_length-3] + "..."
+
+    # For regular text, use LLM to generate smart title
+    try:
+        prompt = f"""<|begin_of_text|><|start_header_id|>system<|end_header_id|>
+
+You are a requirements analyst. Create a concise session title (4-7 words) that summarizes this requirement text.
+
+Rules:
+- Use title case
+- No quotes or punctuation at the end
+- Focus on the main action/feature
+- Be specific and descriptive
+
+<|eot_id|><|start_header_id|>user<|end_header_id|>
+
+Requirements text:
+{text[:300]}
+
+Generate a short, descriptive title (4-7 words):
+
+<|eot_id|><|start_header_id|>assistant<|end_header_id|>
+
+"""
+        
+        outputs = pipe(
+            prompt,
+            max_new_tokens=30,
+            temperature=0.3,
+            top_p=0.85,
+            do_sample=True,
+            return_full_text=False,
+            eos_token_id=tokenizer.eos_token_id,
+            pad_token_id=tokenizer.eos_token_id
+        )
+        
+        title = outputs[0]["generated_text"].strip()
+        
+        # Clean up the title
+        title = title.replace('\n', ' ').strip()
+        title = title.strip('"\'.,;:')
+        
+        # Check if it's reasonable (not too long, not too short)
+        word_count = len(title.split())
+        if 3 <= word_count <= 10 and len(title) <= max_length:
+            return title
+            
+    except Exception as e:
+        print(f"⚠️  LLM title generation failed: {e}")
+    
+    # Fallback: Smart keyword extraction
+    return generate_fallback_title(text, max_length)
+
+def generate_fallback_title(text: str, max_length: int = 50) -> str:
+    """
+    Fallback method: Extract key concepts and build a title
+    Uses simple NLP techniques without LLM
+    """
+    
+    # Extract key action verbs and nouns
+    action_verbs = [
+        'login', 'register', 'search', 'browse', 'add', 'create',
+        'update', 'delete', 'manage', 'view', 'edit', 'track',
+        'checkout', 'purchase', 'order', 'pay', 'upload', 'download'
+    ]
+    
+    important_nouns = [
+        'user', 'customer', 'admin', 'system', 'product', 'order',
+        'cart', 'payment', 'account', 'profile', 'restaurant',
+        'delivery', 'notification', 'report', 'document', 'file'
+    ]
+    
+    text_lower = text.lower()
+    
+    # Find mentioned verbs and nouns
+    found_verbs = [v for v in action_verbs if v in text_lower]
+    found_nouns = [n for n in important_nouns if n in text_lower]
+    
+    # Build title from found keywords
+    if found_verbs and found_nouns:
+        # Format: "User Login And Product Search"
+        verb_part = ' And '.join([v.title() for v in found_verbs[:2]])
+        noun_part = found_nouns[0].title()
+        title = f"{noun_part} {verb_part}"
+        
+        if len(title) <= max_length:
+            return title
+    
+    # If keywords don't work, use first meaningful sentence
+    sentences = [s.strip() for s in re.split(r'[.!?]+', text) if len(s.strip()) > 10]
+    
+    if sentences:
+        first_sentence = sentences[0]
+        
+        # Remove common prefixes
+        prefixes = ['the system should', 'the user can', 'user can', 'system should']
+        for prefix in prefixes:
+            if first_sentence.lower().startswith(prefix):
+                first_sentence = first_sentence[len(prefix):].strip()
+        
+        # Capitalize and truncate
+        first_sentence = first_sentence.capitalize()
+        
+        if len(first_sentence) <= max_length:
+            return first_sentence
+        
+        # Truncate at last complete word
+        truncated = first_sentence[:max_length]
+        last_space = truncated.rfind(' ')
+        if last_space > max_length * 0.6:
+            return truncated[:last_space] + "..."
+        return truncated + "..."
+    
+    # Ultimate fallback
+    return "Requirements Session"
+
+# Update the list_sessions endpoint to use improved title generation
 @app.get("/sessions/")
 def list_sessions():
-    """List all active sessions"""
+    """List all active sessions with intelligent auto-generated titles"""
     db_path = get_db_path()
     conn = sqlite3.connect(db_path)
     c = conn.cursor()
@@ -1870,16 +2008,51 @@ def list_sessions():
     """)
     
     rows = c.fetchall()
+    
+    # For each session, generate intelligent title
+    sessions_with_titles = []
+    for row in rows:
+        session_id = row[0]
+        
+        # Get first user message from conversation history
+        c.execute("""
+            SELECT content, metadata
+            FROM conversation_history
+            WHERE session_id = ? AND role = 'user'
+            ORDER BY timestamp ASC
+            LIMIT 1
+        """, (session_id,))
+        
+        first_message_row = c.fetchone()
+        
+        if first_message_row:
+            first_user_message = first_message_row[0]
+            metadata = json.loads(first_message_row[1]) if first_message_row[1] else {}
+            
+            # Generate smart session title
+            session_title = generate_session_title(first_user_message)
+            
+            # If it's a document upload, we can add context
+            if metadata.get('type') == 'document_upload':
+                filename = metadata.get('filename', 'Document')
+                # Use filename as context
+                session_title = f"📄 {session_title}"
+        else:
+            session_title = "Untitled Session"
+        
+        sessions_with_titles.append({
+            "session_id": session_id,
+            "session_title": session_title,
+            "project_context": row[1] or "",
+            "domain": row[2] or "",
+            "created_at": row[3],
+            "last_active": row[4]
+        })
+    
     conn.close()
     
     return {
-        "sessions": [{
-            "session_id": row[0],
-            "project_context": row[1],
-            "domain": row[2],
-            "created_at": row[3],
-            "last_active": row[4]
-        } for row in rows]
+        "sessions": sessions_with_titles
     }
 
 
