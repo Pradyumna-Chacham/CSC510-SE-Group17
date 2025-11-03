@@ -1,40 +1,55 @@
-import { useEffect, useState } from "react";
-import axios from "axios";
-import reactLogo from './assets/react.svg'
-import viteLogo from '/vite.svg'
-import './App.css'
+import React from 'react';
+import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import { ToastContainer } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
+
+// Layout
+import Header from './components/Layout/Header';
+import Sidebar from './components/Layout/Sidebar';
+
+// Pages
+import Chat from './pages/Chat';
+import Analytics from './pages/Analytics';
+import Query from './pages/Query';
+import Export from './pages/Export';
 
 function App() {
-  const [prompt, setPrompt] = useState("");
-  const [response, setResponse] = useState("");
-
-  const handleSend = async () => {
-    try {
-      const res = await axios.post("http://127.0.0.1:8000/llm", { text: prompt });
-      setResponse(res.data.response);
-    } catch (err) {
-      console.error(err);
-      setResponse("Error fetching response");
-    }
-  };
-
   return (
-    <div className="p-8">
-      <textarea
-        rows={4}
-        className="w-full border rounded p-2"
-        value={prompt}
-        onChange={(e) => setPrompt(e.target.value)}
-        placeholder="Type your prompt here..."
-      />
-      <button className="mt-2 px-4 py-2 bg-blue-600 text-white rounded" onClick={handleSend}>
-        Send
-      </button>
-      <div className="mt-4 p-4 border rounded bg-gray-100">
-        <strong>Response:</strong>
-        <p>{response}</p>
+    <Router>
+      <div className="flex h-screen bg-gray-50">
+        {/* Left Sidebar - Session History */}
+        <Sidebar />
+
+        {/* Main Content Area */}
+        <div className="flex-1 flex flex-col">
+          {/* Top Header */}
+          <Header />
+
+          {/* Page Content */}
+          <main className="flex-1 overflow-hidden">
+            <Routes>
+              <Route path="/" element={<Chat />} />
+              <Route path="/analytics" element={<Analytics />} />
+              <Route path="/query" element={<Query />} />
+              <Route path="/export" element={<Export />} />
+            </Routes>
+          </main>
+        </div>
+
+        {/* Toast Notifications */}
+        <ToastContainer
+          position="bottom-right"
+          autoClose={3000}
+          hideProgressBar={false}
+          newestOnTop
+          closeOnClick
+          rtl={false}
+          pauseOnFocusLoss
+          draggable
+          pauseOnHover
+        />
       </div>
-    </div>
+    </Router>
   );
 }
 
