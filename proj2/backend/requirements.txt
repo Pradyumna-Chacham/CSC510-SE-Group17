@@ -4,9 +4,9 @@ uvicorn==0.24.0
 python-multipart==0.0.6  # Required for file uploads
 
 # LLM and NLP
-transformers==4.35.0
-torch==2.1.0
-sentence-transformers==2.2.2
+transformers
+torch
+sentence-transformers
 nltk==3.8.1
 
 # Vector DB and RAG

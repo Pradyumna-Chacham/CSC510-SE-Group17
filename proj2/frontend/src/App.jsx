@@ -8,10 +8,7 @@ import Header from './components/Layout/Header';
 import Sidebar from './components/Layout/Sidebar';
 
 // Pages
-import Dashboard from './pages/Dashboard';
-import Extraction from './pages/Extraction';
-import UseCaseDetail from './pages/UseCaseDetail';
-import SessionHistory from './pages/SessionHistory';
+import Chat from './pages/Chat';
 import Analytics from './pages/Analytics';
 import Query from './pages/Query';
 import Export from './pages/Export';
@@ -19,18 +16,19 @@ import Export from './pages/Export';
 function App() {
   return (
     <Router>
-      <div className="min-h-screen bg-gray-50">
-        <Header />
-        
-        <div className="flex">
-          <Sidebar />
-          
-          <main className="flex-1">
+      <div className="flex h-screen bg-gray-50">
+        {/* Left Sidebar - Session History */}
+        <Sidebar />
+
+        {/* Main Content Area */}
+        <div className="flex-1 flex flex-col">
+          {/* Top Header */}
+          <Header />
+
+          {/* Page Content */}
+          <main className="flex-1 overflow-hidden">
             <Routes>
-              <Route path="/" element={<Dashboard />} />
-              <Route path="/extraction" element={<Extraction />} />
-              <Route path="/use-case/:id" element={<UseCaseDetail />} />
-              <Route path="/sessions" element={<SessionHistory />} />
+              <Route path="/" element={<Chat />} />
               <Route path="/analytics" element={<Analytics />} />
               <Route path="/query" element={<Query />} />
               <Route path="/export" element={<Export />} />
@@ -38,6 +36,7 @@ function App() {
           </main>
         </div>
 
+        {/* Toast Notifications */}
         <ToastContainer
           position="bottom-right"
           autoClose={3000}
