@@ -1,20 +1,64 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { api } from '../api/client';
+import { toast } from 'react-toastify';
 import QualityBadge from './QualityBadge';
 
-function UseCaseCard({ useCase, onDelete }) {
+function UseCaseCard({ useCase, onDelete, onRefined }) {
   const [expanded, setExpanded] = useState(false);
+  const [refiningUseCase, setRefiningUseCase] = useState(null);
+  const [refineType, setRefineType] = useState('more_main_flows');
+  const [refining, setRefining] = useState(false);
   const navigate = useNavigate();
 
   const qualityScore = useCase.quality_score || 75;
 
+  // Handle use case refinement
+  const handleRefineUseCase = async (useCaseId, refinementType) => {
+    setRefining(true);
+    toast.info('Refining use case...', { autoClose: 2000 });
+    
+    try {
+      const response = await api.refineUseCase({
+        use_case_id: useCaseId,
+        refinement_type: refinementType,
+      });
+
+      console.log('Refinement response:', response.data);
+      toast.success('✨ Use case refined successfully!');
+      
+      // Notify parent component to refresh use cases
+      if (onRefined) {
+        onRefined();
+      }
+      
+      setRefiningUseCase(null);
+      setRefineType('more_main_flows');
+    } catch (error) {
+      console.error('Refinement error:', error);
+      toast.error(error.response?.data?.detail || 'Failed to refine use case. Please try again.');
+    } finally {
+      setRefining(false);
+    }
+  };
+
   return (
-    <div className="bg-white border rounded-lg p-6 shadow-sm hover:shadow-md transition">
+    <>
+    <div className={`bg-white border rounded-lg p-6 shadow-sm hover:shadow-md transition ${
+      useCase._refined ? 'border-green-400 bg-green-50' : ''
+    }`}>
       {/* Header */}
       <div className="flex justify-between items-start mb-4">
-        <h3 className="text-xl font-semibold text-gray-900 flex-1">
-          {useCase.title}
-        </h3>
+        <div className="flex items-center gap-2 flex-1">
+          <h3 className="text-xl font-semibold text-gray-900">
+            {useCase.title}
+          </h3>
+          {useCase._refined && (
+            <span className="text-xs px-2 py-1 bg-green-200 text-green-800 rounded-full">
+              ✨ Refined
+            </span>
+          )}
+        </div>
         <QualityBadge score={qualityScore} />
       </div>
 
@@ -145,12 +189,21 @@ function UseCaseCard({ useCase, onDelete }) {
         >
           View Details
         </button>
-        <button
-          onClick={() => navigate(`/use-case/${useCase.id}/refine`)}
-          className="px-4 py-2 bg-gray-200 text-gray-700 rounded hover:bg-gray-300 transition text-sm"
-        >
-          Refine
-        </button>
+        {useCase.id && (
+          <button
+            onClick={() => setRefiningUseCase(useCase.id)}
+            className="px-4 py-2 bg-indigo-100 text-indigo-700 rounded hover:bg-indigo-200 transition text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+            disabled={refining || refiningUseCase === useCase.id}
+          >
+            {refining && refiningUseCase === useCase.id ? (
+              <span className="flex items-center gap-1">
+                <span className="animate-spin">⏳</span> Refining...
+              </span>
+            ) : (
+              '✨ Refine'
+            )}
+          </button>
+        )}
         {onDelete && (
           <button
             onClick={() => onDelete(useCase.id)}
@@ -161,6 +214,63 @@ function UseCaseCard({ useCase, onDelete }) {
         )}
       </div>
     </div>
+
+    {/* Refine Modal */}
+    {refiningUseCase && (
+      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
+          <h2 className="text-xl font-bold text-gray-900 mb-4">Refine Use Case</h2>
+          
+          <div className="mb-4">
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Refinement Type
+            </label>
+            <select
+              value={refineType}
+              onChange={(e) => setRefineType(e.target.value)}
+              className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+            >
+              <option value="more_main_flows">Refine Main Flows</option>
+              <option value="more_sub_flows">Refine Sub Flows</option>
+              <option value="more_alternate_flows">Refine Alternate Flows</option>
+              <option value="more_preconditions">Refine Preconditions</option>
+              <option value="more_stakeholders">Refine Stakeholders</option>
+            </select>
+          </div>
+
+          <div className="flex gap-3 justify-end">
+            <button
+              onClick={() => {
+                setRefiningUseCase(null);
+                setRefineType('more_main_flows');
+              }}
+              className="px-4 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition"
+              disabled={refining}
+            >
+              Cancel
+            </button>
+            <button
+              onClick={() => handleRefineUseCase(refiningUseCase, refineType)}
+              className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+              disabled={refining}
+            >
+              {refining ? (
+                <>
+                  <span className="animate-spin">⏳</span>
+                  <span>Refining...</span>
+                </>
+              ) : (
+                <>
+                  <span>✨</span>
+                  <span>Refine</span>
+                </>
+              )}
+            </button>
+          </div>
+        </div>
+      </div>
+    )}
+    </>
   );
 }
 

@@ -1550,14 +1550,16 @@ def refine_use_case_endpoint(request: RefinementRequest):
         raise HTTPException(status_code=404, detail="Use case not found")
     
     # Build refinement prompt based on type
-    if request.refinement_type == "add_detail":
-        instruction = "Add more detailed steps to the main flow, breaking down each action into smaller, more specific steps."
-    elif request.refinement_type == "add_alternates":
-        instruction = "Identify and add alternate flows, including error scenarios, edge cases, and alternative paths through the use case."
-    elif request.refinement_type == "add_error_handling":
-        instruction = "Add comprehensive error handling scenarios, including what happens when things go wrong, timeouts, validation failures, and system errors."
-    elif request.refinement_type == "custom":
-        instruction = request.custom_instruction or "Improve the use case quality."
+    if request.refinement_type == "more_main_flows":
+        instruction = "Add more main flows (additional primary flows or steps) to this use case. Expand the main flow with more detailed or additional steps."
+    elif request.refinement_type == "more_sub_flows":
+        instruction = "Add more sub flows to this use case. Include additional branching scenarios, related flows, or secondary paths."
+    elif request.refinement_type == "more_alternate_flows":
+        instruction = "Add more alternate flows to this use case. Include alternative paths, edge cases, error scenarios, and exception handling flows."
+    elif request.refinement_type == "more_preconditions":
+        instruction = "Add more preconditions to this use case. Include additional requirements, system states, or conditions that must be met before the use case can execute."
+    elif request.refinement_type == "more_stakeholders":
+        instruction = "Add more stakeholders to this use case. Identify additional actors, users, systems, or entities involved in this use case."
     else:
         instruction = "Improve the overall quality and completeness of this use case."
     

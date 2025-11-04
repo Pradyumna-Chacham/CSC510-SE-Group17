@@ -37,6 +37,7 @@ export const api = {
 
   // Use Case Operations
   refineUseCase: (data) => apiClient.post('/use-case/refine', data),
+  getSessionUseCases: (sessionId) => apiClient.get(`/session/${sessionId}/history`),
 
   // Analytics
   getMetrics: (sessionId) => apiClient.get(`/session/${sessionId}/metrics`),
