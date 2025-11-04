@@ -24,7 +24,6 @@ from rag_utils import build_memory_context
 from use_case_validator import UseCaseValidator
 from use_case_enrichment import enrich_use_case
 from export_utils import export_to_docx, export_to_plantuml, export_to_markdown
-from conflict_detector import detect_conflicts
 from document_parser import extract_text_from_file, validate_file_size, get_text_stats
 from chunking_strategy import DocumentChunker
 import traceback
@@ -1728,24 +1727,6 @@ def export_docx_endpoint(session_id: str):
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Export failed: {str(e)}")
 
-
-@app.get("/session/{session_id}/export/plantuml")
-def export_plantuml_endpoint(session_id: str):
-    """Export as PlantUML diagram"""
-    
-    use_cases = get_session_use_cases(session_id)
-    
-    if not use_cases:
-        raise HTTPException(status_code=404, detail="No use cases found for this session")
-    
-    try:
-        plantuml_code = export_to_plantuml(use_cases)
-        return {
-            "plantuml": plantuml_code,
-            "instructions": "Copy this code to https://www.plantuml.com/plantuml/ or use a PlantUML plugin"
-        }
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Export failed: {str(e)}")
 
 
 @app.get("/session/{session_id}/export/markdown")

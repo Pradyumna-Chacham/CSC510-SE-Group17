@@ -3,6 +3,7 @@ import { api } from '../api/client';
 import { toast } from 'react-toastify';
 import useSessionStore from '../store/useSessionStore';
 import FileUploader from '../components/FileUploader';
+import SessionHeader from '../components/Layout/SessionHeader';
 
 function Chat() {
   const { currentSessionId, setCurrentSession } = useSessionStore();
@@ -14,6 +15,9 @@ function Chat() {
   const [refineType, setRefineType] = useState('more_main_flows');
   const [refining, setRefining] = useState(false);
   const messagesEndRef = useRef(null);
+
+  // Check if there's an active session (messages exist or currentSessionId is set)
+  const hasActiveSession = messages.length > 0 || currentSessionId;
 
   // Normalize backend extraction response for consistent rendering
   const normalizeExtractionResponse = (data) => {
@@ -45,11 +49,6 @@ function Chat() {
     };
   };
 
-  // ✅ VERIFICATION: This will prove the new code is loaded
-  useEffect(() => {
-    console.log("🚀 NEW CHAT COMPONENT LOADED - v2.0");
-  }, []);
-
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   };
@@ -70,10 +69,8 @@ function Chat() {
     try {
       const response = await api.getSessionHistory(currentSessionId, 50);
       const history = response.data.conversation_history || [];
-      // Get fresh use cases from database (includes refined versions)
       const freshUseCases = response.data.generated_use_cases || [];
       
-      // Create a map of fresh use cases by ID for quick lookup
       const freshUseCasesMap = new Map();
       freshUseCases.forEach(uc => {
         if (uc.id) {
@@ -81,37 +78,29 @@ function Chat() {
         }
       });
       
-      // Filter out parsed document text that appears after document uploads
       const formattedMessages = [];
       for (let i = 0; i < history.length; i++) {
         const msg = history[i];
         const prevMsg = i > 0 ? history[i - 1] : null;
         
-        // Check if this is a long text message that follows a document upload
-        // The backend stores parsed text with metadata.type='requirement_input' even from documents
         const isLongText = msg.role === 'user' && 
                           msg.content && 
-                          msg.content.length > 200; // Long text (likely parsed document content)
+                          msg.content.length > 200;
         
         const prevWasDocumentUpload = prevMsg && 
                                      prevMsg.metadata?.type === 'document_upload';
         
-        // Skip long text messages that follow document uploads (these are the parsed text)
-        // Regular text inputs are usually shorter, so this filters out document parsed content
         if (isLongText && prevWasDocumentUpload && msg.metadata?.type !== 'document_upload') {
           continue;
         }
         
-        // For use cases, replace old metadata with fresh data from database
         let useCases = undefined;
         if (Array.isArray(msg.metadata?.use_cases)) {
           useCases = msg.metadata.use_cases.map(uc => {
             const ucId = uc.id || uc.use_case_id;
-            // If we have fresh data from database, use it instead of old metadata
             if (ucId && freshUseCasesMap.has(ucId)) {
               return freshUseCasesMap.get(ucId);
             }
-            // Fallback to metadata if not found in fresh data
             return {
               ...uc,
               id: ucId || undefined,
@@ -123,7 +112,6 @@ function Chat() {
           role: msg.role,
           content: msg.content,
           metadata: msg.metadata,
-          // Use fresh use cases from database instead of stale metadata
           results: useCases,
           validation_results: Array.isArray(msg.metadata?.validation_results) ? msg.metadata.validation_results : undefined,
         });
@@ -243,7 +231,6 @@ function Chat() {
     }
   };
 
-  // Handle use case refinement
   const handleRefineUseCase = async (useCaseId, refinementType) => {
     setRefining(true);
     toast.info('Refining use case...', { autoClose: 2000 });
@@ -254,19 +241,15 @@ function Chat() {
         refinement_type: refinementType,
       });
 
-      console.log('Refinement response:', response.data);
       const refinedData = response.data.refined_use_case;
       
       toast.success('✨ Use case refined successfully! Refreshing...');
       
-      // Wait a moment for backend to finish updating
       await new Promise(resolve => setTimeout(resolve, 800));
       
-      // Always reload from database to get the latest refined data
       if (currentSessionId) {
         await loadConversationHistory();
       } else {
-        // Fallback: update current messages if no session
         setMessages(prevMessages => {
           return prevMessages.map(msg => {
             if (msg.results && Array.isArray(msg.results)) {
@@ -274,13 +257,11 @@ function Chat() {
                 ...msg,
                 results: msg.results.map(uc => {
                   if (uc.id === useCaseId) {
-                    console.log('Updating use case with refined data:', refinedData);
-                    // Update with refined data from response
                     return {
                       ...uc,
                       ...refinedData,
-                      id: useCaseId, // Preserve the id
-                      _refined: true, // Mark as refined for visual feedback
+                      id: useCaseId,
+                      _refined: true,
                     };
                   }
                   return uc;
@@ -295,7 +276,6 @@ function Chat() {
       setRefiningUseCase(null);
       setRefineType('more_main_flows');
       
-      // Scroll to show the refined use case
       setTimeout(() => {
         scrollToBottom();
       }, 100);
@@ -308,34 +288,16 @@ function Chat() {
     }
   };
 
-  // Get quality badge color
-  const getQualityBadge = (validation) => {
-    if (!validation) return null;
-    
-    const score = validation.quality_score || 0;
-    
-    if (score >= 80) {
-      return <span className="text-xs px-2 py-1 rounded-full bg-green-100 text-green-700">
-        ✨ {score}/100
-      </span>;
-    } else if (score >= 60) {
-      return <span className="text-xs px-2 py-1 rounded-full bg-yellow-100 text-yellow-700">
-        ⚠️ {score}/100
-      </span>;
-    } else {
-      return <span className="text-xs px-2 py-1 rounded-full bg-red-100 text-red-700">
-        ❌ {score}/100
-      </span>;
-    }
-  };
-
   return (
     <div className="h-full flex flex-col bg-gray-50">
+      {/* Show Session Header only when there's an active session */}
+      {hasActiveSession && <SessionHeader />}
+
       <div className="flex-1 overflow-y-auto p-6">
         {messages.length === 0 ? (
           <div className="max-w-3xl mx-auto text-center py-20">
             <h1 className="text-4xl font-bold text-gray-900 mb-4">
-              Welcome to ReqEngine 🚀
+              Welcome to ReqEngine 
             </h1>
             <p className="text-lg text-gray-600 mb-8">
               Transform unstructured requirements into structured use cases
@@ -358,8 +320,6 @@ function Chat() {
         ) : (
           <div className="max-w-4xl mx-auto space-y-6 pb-4">
             {messages.map((message, idx) => {
-              // Skip long parsed text messages that follow document uploads
-              // The backend stores parsed text with metadata.type='requirement_input' even from documents
               const prevMsg = idx > 0 ? messages[idx - 1] : null;
               const isLongParsedText = message.role === 'user' && 
                                       message.content && 
@@ -368,7 +328,7 @@ function Chat() {
                                       prevMsg?.metadata?.type === 'document_upload';
               
               if (isLongParsedText) {
-                return null; // Don't render parsed text from document uploads
+                return null;
               }
               
               return (
@@ -383,7 +343,6 @@ function Chat() {
                       : 'bg-white border'
                   }`}
                 >
-                  {/* Pretty file upload pill for user file messages */}
                   {message.metadata?.type === 'document_upload' ? (
                     <div className={`flex items-center gap-3 ${message.role === 'user' ? 'text-white' : 'text-gray-900'}`}>
                       <div className={`flex items-center justify-center w-9 h-9 rounded-md ${message.role === 'user' ? 'bg-white/15' : 'bg-indigo-100 text-indigo-700'}`}>
@@ -412,15 +371,6 @@ function Chat() {
                   {message.results && message.results.length > 0 && (
                     <div className="mt-4 space-y-4">
                       {message.results.map((uc, i) => {
-                        const validation = message.validation_results?.find(
-                          v => v.title === uc.title
-                        );
-                        
-                        // Debug: Log use case structure to help identify missing id
-                        if (i === 0) {
-                          console.log('Use case structure:', { id: uc.id, title: uc.title, status: uc.status });
-                        }
-
                         return (
                           <div 
                             key={i} 
@@ -428,7 +378,6 @@ function Chat() {
                               uc._refined ? 'border-green-400 bg-green-50' : ''
                             } transition-all duration-300`}
                           >
-                            {/* Title and Status - NO WARNINGS HERE */}
                             <div className="flex items-center justify-between mb-3">
                               <div className="flex items-center gap-2">
                                 <p className="font-bold text-lg">{uc.title}</p>
@@ -440,7 +389,6 @@ function Chat() {
                               </div>
                             </div>
 
-                            {/* Preconditions */}
                             {uc.preconditions && uc.preconditions.length > 0 && (
                               <div className="mb-3">
                                 <p className="font-semibold text-indigo-700 mb-1">📋 Preconditions:</p>
@@ -454,7 +402,6 @@ function Chat() {
                               </div>
                             )}
 
-                            {/* Main Flow */}
                             {uc.main_flow && uc.main_flow.length > 0 && (
                               <div className="mb-3">
                                 <p className="font-semibold text-indigo-700 mb-1">🔄 Main Flow:</p>
@@ -468,7 +415,6 @@ function Chat() {
                               </div>
                             )}
 
-                            {/* Sub Flows */}
                             {uc.sub_flows && uc.sub_flows.length > 0 && (
                               <div className="mb-3">
                                 <p className="font-semibold text-indigo-700 mb-1">🔀 Sub Flows:</p>
@@ -482,7 +428,6 @@ function Chat() {
                               </div>
                             )}
 
-                            {/* Alternate Flows */}
                             {uc.alternate_flows && uc.alternate_flows.length > 0 && (
                               <div className="mb-3">
                                 <p className="font-semibold text-indigo-700 mb-1">⚠️ Alternate Flows:</p>
@@ -496,7 +441,6 @@ function Chat() {
                               </div>
                             )}
 
-                            {/* Outcomes */}
                             {uc.outcomes && uc.outcomes.length > 0 && (
                               <div className="mb-3">
                                 <p className="font-semibold text-indigo-700 mb-1">✅ Outcomes:</p>
@@ -510,7 +454,6 @@ function Chat() {
                               </div>
                             )}
 
-                            {/* Stakeholders */}
                             {uc.stakeholders && uc.stakeholders.length > 0 && (
                               <div>
                                 <p className="font-semibold text-indigo-700 mb-1">👥 Stakeholders:</p>
@@ -527,7 +470,6 @@ function Chat() {
                               </div>
                             )}
 
-                            {/* Refine Button - Show for all stored use cases */}
                             <div className="mt-4 pt-3 border-t border-gray-200">
                               {uc.id ? (
                                 <div className="flex items-center gap-2">
@@ -544,11 +486,6 @@ function Chat() {
                                       '✨ Refine Use Case'
                                     )}
                                   </button>
-                                  {refining && refiningUseCase === uc.id && (
-                                    <span className="text-xs text-gray-500">
-                                      Processing refinement...
-                                    </span>
-                                  )}
                                 </div>
                               ) : (
                                 <p className="text-xs text-gray-500">
@@ -556,8 +493,6 @@ function Chat() {
                                 </p>
                               )}
                             </div>
-
-                            {/* ✅ NO VALIDATION WARNINGS SECTION HERE - COMPLETELY REMOVED */}
                           </div>
                         );
                       })}
@@ -591,7 +526,6 @@ function Chat() {
         )}
       </div>
 
-      {/* Refine Use Case Modal */}
       {refiningUseCase && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
@@ -697,7 +631,7 @@ function Chat() {
                 disabled={loading || !inputText.trim()}
                 className="px-6 py-3 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition disabled:opacity-50 disabled:cursor-not-allowed font-medium flex-shrink-0"
               >
-                {loading ? '⏳' : '📤'}
+                {loading ? '⏳' : '⬆'}
               </button>
             </div>
           )}

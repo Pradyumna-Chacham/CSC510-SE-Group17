@@ -3,6 +3,7 @@ import { api } from '../api/client';
 import { toast } from 'react-toastify';
 import useSessionStore from '../store/useSessionStore';
 import { downloadFile } from '../utils/formatters';
+import SessionHeader from '../components/Layout/SessionHeader';
 
 function Export() {
   const { currentSessionId } = useSessionStore();
@@ -43,100 +44,108 @@ function Export() {
   // If no session is selected
   if (!currentSessionId) {
     return (
-      <div className="p-8">
-        <div className="max-w-4xl mx-auto">
-          <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-6 text-center">
-            <p className="text-yellow-800">
-              Please select a session to export
-            </p>
+      <div className="flex flex-col h-full">
+        <div className="flex-1 p-8">
+          <div className="max-w-4xl mx-auto">
+            <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-6 text-center">
+              <p className="text-yellow-800">
+                Please select a session from the sidebar or create a new chat to export
+              </p>
+            </div>
           </div>
         </div>
       </div>
     );
   }
 
-  // Main export UI
+  // Main export UI with session header
   return (
-    <div className="p-8">
-      <div className="max-w-4xl mx-auto">
-        <h1 className="text-4xl font-bold text-gray-900 mb-8">Export 📥</h1>
+    <div className="flex flex-col h-full">
+      {/* Session Header */}
+      <SessionHeader />
 
-        <div className="bg-white rounded-lg shadow-sm border p-8">
-          <h2 className="text-xl font-semibold text-gray-900 mb-6">
-            Export Options
-          </h2>
+      {/* Content */}
+      <div className="flex-1 p-8 overflow-y-auto">
+        <div className="max-w-4xl mx-auto">
+          <h1 className="text-4xl font-bold text-gray-900 mb-8">Export 📥</h1>
 
-          {/* Format Selection */}
-          <div className="space-y-4 mb-8">
-            {/* DOCX */}
-            <label className="flex items-center p-4 border rounded-lg cursor-pointer hover:bg-gray-50">
-              <input
-                type="radio"
-                name="format"
-                value="docx"
-                checked={format === 'docx'}
-                onChange={(e) => setFormat(e.target.value)}
-                className="mr-4"
-              />
-              <div>
-                <p className="font-semibold text-gray-900">Microsoft Word (DOCX)</p>
-                <p className="text-sm text-gray-600">
-                  Professional document with formatted sections
-                </p>
-              </div>
-            </label>
+          <div className="bg-white rounded-lg shadow-sm border p-8">
+            <h2 className="text-xl font-semibold text-gray-900 mb-6">
+              Export Options
+            </h2>
 
-            {/* Markdown */}
-            <label className="flex items-center p-4 border rounded-lg cursor-pointer hover:bg-gray-50">
-              <input
-                type="radio"
-                name="format"
-                value="markdown"
-                checked={format === 'markdown'}
-                onChange={(e) => setFormat(e.target.value)}
-                className="mr-4"
-              />
-              <div>
-                <p className="font-semibold text-gray-900">Markdown (MD)</p>
-                <p className="text-sm text-gray-600">
-                  Plain text format, great for GitHub/documentation
-                </p>
-              </div>
-            </label>
+            {/* Format Selection */}
+            <div className="space-y-4 mb-8">
+              {/* DOCX */}
+              <label className="flex items-center p-4 border rounded-lg cursor-pointer hover:bg-gray-50 transition">
+                <input
+                  type="radio"
+                  name="format"
+                  value="docx"
+                  checked={format === 'docx'}
+                  onChange={(e) => setFormat(e.target.value)}
+                  className="mr-4"
+                />
+                <div>
+                  <p className="font-semibold text-gray-900">Microsoft Word (DOCX)</p>
+                  <p className="text-sm text-gray-600">
+                    Professional document with formatted sections
+                  </p>
+                </div>
+              </label>
 
-            {/* PlantUML */}
-            <label className="flex items-center p-4 border rounded-lg cursor-pointer hover:bg-gray-50">
-              <input
-                type="radio"
-                name="format"
-                value="plantuml"
-                checked={format === 'plantuml'}
-                onChange={(e) => setFormat(e.target.value)}
-                className="mr-4"
-              />
-              <div>
-                <p className="font-semibold text-gray-900">PlantUML Diagram</p>
-                <p className="text-sm text-gray-600">
-                  Visual use case diagram (paste at plantuml.com)
-                </p>
-              </div>
-            </label>
-          </div>
+              {/* Markdown */}
+              <label className="flex items-center p-4 border rounded-lg cursor-pointer hover:bg-gray-50 transition">
+                <input
+                  type="radio"
+                  name="format"
+                  value="markdown"
+                  checked={format === 'markdown'}
+                  onChange={(e) => setFormat(e.target.value)}
+                  className="mr-4"
+                />
+                <div>
+                  <p className="font-semibold text-gray-900">Markdown (MD)</p>
+                  <p className="text-sm text-gray-600">
+                    Plain text format, great for GitHub/documentation
+                  </p>
+                </div>
+              </label>
 
-          {/* Export Button */}
-          <button
-            onClick={handleExport}
-            disabled={exporting}
-            className="w-full bg-indigo-600 text-white px-6 py-3 rounded-lg hover:bg-indigo-700 transition disabled:opacity-50 disabled:cursor-not-allowed font-medium"
-          >
-            {exporting ? '⏳ Exporting...' : `📥 Export as ${format.toUpperCase()}`}
-          </button>
+              {/* PlantUML */}
+              <label className="flex items-center p-4 border rounded-lg cursor-pointer hover:bg-gray-50 transition">
+                <input
+                  type="radio"
+                  name="format"
+                  value="plantuml"
+                  checked={format === 'plantuml'}
+                  onChange={(e) => setFormat(e.target.value)}
+                  className="mr-4"
+                />
+                <div>
+                  <p className="font-semibold text-gray-900">PlantUML Diagram</p>
+                  <p className="text-sm text-gray-600">
+                    Visual use case diagram (paste at plantuml.com)
+                  </p>
+                </div>
+              </label>
+            </div>
 
-          {/* Info */}
-          <div className="mt-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
-            <p className="text-sm text-blue-800">
-              <strong>Note:</strong> The export will include all use cases from the current session.
-            </p>
+            {/* Export Button */}
+            <button
+              onClick={handleExport}
+              disabled={exporting}
+              className="w-full bg-indigo-600 text-white px-6 py-3 rounded-lg hover:bg-indigo-700 transition disabled:opacity-50 disabled:cursor-not-allowed font-medium"
+            >
+              {exporting ? '⏳ Exporting...' : `📥 Export as ${format.toUpperCase()}`}
+            </button>
+
+            {/* Info */}
+            <div className="mt-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+              <p className="text-sm text-blue-800">
+                <strong>Note:</strong> The export will include all use cases from the current session.
+              </p>
+            </div>
           </div>
         </div>
       </div>
