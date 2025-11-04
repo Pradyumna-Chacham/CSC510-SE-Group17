@@ -6,7 +6,7 @@ function Header() {
 
   const navItems = [
     { path: '/', label: 'Chat', icon: '💬' },
-    { path: '/analytics', label: 'Analytics', icon: '📊' },
+    // ❌ REMOVED: { path: '/analytics', label: 'Analytics', icon: '📊' },
     { path: '/export', label: 'Export', icon: '📥' },
     { path: '/query', label: 'Query', icon: '🔍' },
   ];

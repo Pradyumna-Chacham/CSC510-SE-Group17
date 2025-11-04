@@ -3,45 +3,51 @@ import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 
-// Layout
-import Header from './components/Layout/Header';
-import Sidebar from './components/Layout/Sidebar';
+// Layout Components
+import Sidebar from './components/layout/Sidebar';
+import Header from './components/layout/Header';
 
 // Pages
 import Chat from './pages/Chat';
-import Analytics from './pages/Analytics';
-import Query from './pages/Query';
+import Extraction from './pages/Extraction';
+// ❌ REMOVED: import Analytics from './pages/Analytics';
 import Export from './pages/Export';
+import Query from './pages/Query';
+import UseCaseDetail from './pages/UseCaseDetail';
+import UseCaseRefine from './pages/UseCaseRefine';
 
 function App() {
   return (
     <Router>
       <div className="flex h-screen bg-gray-50">
-        {/* Left Sidebar - Session History */}
+        {/* Sidebar */}
         <Sidebar />
 
         {/* Main Content Area */}
-        <div className="flex-1 flex flex-col">
-          {/* Top Header */}
+        <div className="flex-1 flex flex-col overflow-hidden">
+          {/* Header */}
           <Header />
 
           {/* Page Content */}
-          <main className="flex-1 overflow-hidden">
+          <main className="flex-1 overflow-y-auto">
             <Routes>
               <Route path="/" element={<Chat />} />
-              <Route path="/analytics" element={<Analytics />} />
-              <Route path="/query" element={<Query />} />
+              <Route path="/extraction" element={<Extraction />} />
+              {/* ❌ REMOVED: <Route path="/analytics" element={<Analytics />} /> */}
               <Route path="/export" element={<Export />} />
+              <Route path="/query" element={<Query />} />
+              <Route path="/use-case/:id" element={<UseCaseDetail />} />
+              <Route path="/use-case/:id/refine" element={<UseCaseRefine />} />
             </Routes>
           </main>
         </div>
 
         {/* Toast Notifications */}
         <ToastContainer
-          position="bottom-right"
+          position="top-right"
           autoClose={3000}
           hideProgressBar={false}
-          newestOnTop
+          newestOnTop={false}
           closeOnClick
           rtl={false}
           pauseOnFocusLoss

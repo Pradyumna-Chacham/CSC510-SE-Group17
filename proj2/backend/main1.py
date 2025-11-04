@@ -1618,82 +1618,6 @@ Return the refined use case in the same JSON format, with improvements applied.
         raise HTTPException(status_code=500, detail=f"Refinement failed: {str(e)}")
 
 
-@app.get("/session/{session_id}/metrics")
-def get_session_metrics(session_id: str):
-    """Get quality metrics for the session"""
-    
-    use_cases = get_session_use_cases(session_id)
-    
-    if not use_cases:
-        return {
-            "total_use_cases": 0,
-            "message": "No use cases found for this session"
-        }
-    
-    # Calculate various metrics
-    total_uc = len(use_cases)
-    
-    avg_preconditions = sum(len(uc['preconditions']) for uc in use_cases) / total_uc
-    avg_main_flow_steps = sum(len(uc['main_flow']) for uc in use_cases) / total_uc
-    avg_outcomes = sum(len(uc['outcomes']) for uc in use_cases) / total_uc
-    
-    with_sub_flows = len([uc for uc in use_cases if uc['sub_flows'] != ["Optional features available"]])
-    with_alternate_flows = len([uc for uc in use_cases if uc['alternate_flows'] != ["Error handling included"]])
-    
-    # Extract unique actors
-    all_stakeholders = set()
-    for uc in use_cases:
-        all_stakeholders.update(uc['stakeholders'])
-    
-    # Calculate completeness score
-    def calc_completeness(use_cases):
-        score = 0
-        max_score = len(use_cases) * 6
-        
-        for uc in use_cases:
-            if len(uc['preconditions']) > 1:
-                score += 1
-            if len(uc['main_flow']) >= 3:
-                score += 1
-            if uc['sub_flows'] != ["Optional features available"]:
-                score += 1
-            if uc['alternate_flows'] != ["Error handling included"]:
-                score += 1
-            if len(uc['outcomes']) > 0:
-                score += 1
-            if len(uc['stakeholders']) >= 2:
-                score += 1
-        
-        return (score / max_score) * 100 if max_score > 0 else 0
-    
-    completeness_score = calc_completeness(use_cases)
-    
-    # Detect conflicts
-    conflicts = detect_conflicts(use_cases)
-    
-    return {
-        "total_use_cases": total_uc,
-        "averages": {
-            "preconditions": round(avg_preconditions, 2),
-            "main_flow_steps": round(avg_main_flow_steps, 2),
-            "outcomes": round(avg_outcomes, 2)
-        },
-        "coverage": {
-            "with_sub_flows": with_sub_flows,
-            "with_alternate_flows": with_alternate_flows,
-            "sub_flows_percentage": round((with_sub_flows / total_uc) * 100, 2),
-            "alternate_flows_percentage": round((with_alternate_flows / total_uc) * 100, 2)
-        },
-        "stakeholders": list(all_stakeholders),
-        "completeness_score": round(completeness_score, 2),
-        "conflicts": conflicts,
-        "quality_summary": {
-            "excellent": len([uc for uc in use_cases if UseCaseValidator.calculate_quality_score(uc) >= 80]),
-            "good": len([uc for uc in use_cases if 60 <= UseCaseValidator.calculate_quality_score(uc) < 80]),
-            "needs_improvement": len([uc for uc in use_cases if UseCaseValidator.calculate_quality_score(uc) < 60])
-        }
-    }
-
 
 @app.post("/query")
 def query_requirements(request: QueryRequest):
@@ -1707,11 +1631,27 @@ def query_requirements(request: QueryRequest):
             "relevant_use_cases": []
         }
     
-    context = json.dumps(use_cases, indent=2)
+    # Remove database IDs from use cases before sending to LLM
+    # This prevents use case numbers from appearing in explanations
+    use_cases_for_context = []
+    for uc in use_cases:
+        use_case_without_id = {
+            "title": uc.get("title", ""),
+            "preconditions": uc.get("preconditions", []),
+            "main_flow": uc.get("main_flow", []),
+            "sub_flows": uc.get("sub_flows", []),
+            "alternate_flows": uc.get("alternate_flows", []),
+            "outcomes": uc.get("outcomes", []),
+            "stakeholders": uc.get("stakeholders", [])
+        }
+        use_cases_for_context.append(use_case_without_id)
+    
+    context = json.dumps(use_cases_for_context, indent=2)
     
     prompt = f"""<|begin_of_text|><|start_header_id|>system<|end_header_id|>
 
 You are a requirements analyst assistant. Answer questions about use cases clearly and concisely.
+IMPORTANT: Do NOT mention use case IDs, numbers, or database identifiers in your responses. Only refer to use cases by their titles.
 
 <|eot_id|><|start_header_id|>user<|end_header_id|>
 
@@ -1720,7 +1660,7 @@ Use cases:
 
 Question: {request.question}
 
-Provide a clear, helpful answer based on the use cases above.
+Provide a clear, helpful answer based on the use cases above. Do not include any use case numbers or IDs in your response.
 
 <|eot_id|><|start_header_id|>assistant<|end_header_id|>
 
@@ -1737,6 +1677,18 @@ Provide a clear, helpful answer based on the use cases above.
         )
         
         answer = outputs[0]["generated_text"].strip()
+        
+        # Post-process to remove any use case numbers that might have slipped through
+        # Remove patterns like "Use Case 249", "Use Case 248", "UC 253", etc.
+        answer = re.sub(r'\(Use Case\s+\d+\)', '', answer, flags=re.IGNORECASE)
+        answer = re.sub(r'\(Use Cases\s+\d+[,\s]*\d*\)', '', answer, flags=re.IGNORECASE)
+        answer = re.sub(r'Use Case\s+\d+', '', answer, flags=re.IGNORECASE)
+        answer = re.sub(r'UC\s+\d+', '', answer, flags=re.IGNORECASE)
+        # Clean up any double spaces or trailing commas/spaces
+        answer = re.sub(r'\s+', ' ', answer)
+        answer = re.sub(r'\s*,\s*,', ',', answer)
+        answer = re.sub(r'\s*,\s*\.', '.', answer)
+        answer = answer.strip()
         
         # Find relevant use cases
         question_lower = request.question.lower()
@@ -1816,27 +1768,6 @@ def export_markdown_endpoint(session_id: str):
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Export failed: {str(e)}")
 
-
-@app.get("/session/{session_id}/conflicts")
-def get_conflicts(session_id: str):
-    """Detect conflicting requirements in the session"""
-    
-    use_cases = get_session_use_cases(session_id)
-    
-    if not use_cases:
-        return {"conflicts": [], "message": "No use cases to analyze"}
-    
-    conflicts = detect_conflicts(use_cases)
-    
-    return {
-        "total_conflicts": len(conflicts),
-        "conflicts": conflicts,
-        "severity": {
-            "high": len([c for c in conflicts if c.get("severity") == "high"]),
-            "medium": len([c for c in conflicts if c.get("severity") == "medium"]),
-            "low": len([c for c in conflicts if c.get("severity") == "low"])
-        }
-    }
 
 
 @app.delete("/session/{session_id}")
