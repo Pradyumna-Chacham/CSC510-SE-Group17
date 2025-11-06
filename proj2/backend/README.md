@@ -144,12 +144,6 @@ pytest -m unit                 # Unit tests only
 pytest -m integration          # Integration tests only
 ```
 
-### Coverage Reports
-- **Terminal Output**: Real-time coverage summary
-- **HTML Report**: Detailed analysis in `htmlcov/index.html`
-- **Test Markers**: Organized by test type and functionality
-
----
 
 
 

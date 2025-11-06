@@ -8,23 +8,100 @@
 [![SQLite](https://img.shields.io/badge/Database-SQLite-003B57.svg?logo=sqlite&logoColor=white)](https://www.sqlite.org/)
 [![Transformers](https://img.shields.io/badge/AI-Transformers-FF6F00.svg?logo=huggingface&logoColor=white)](https://huggingface.co/transformers/)
 [![ChromaDB](https://img.shields.io/badge/Vector_DB-ChromaDB-FF6B6B.svg)](https://www.trychroma.com/)
+[![Backend Tests](https://img.shields.io/badge/Backend_Tests-85%25_Coverage-brightgreen.svg?logo=pytest&logoColor=white)](https://github.com/Pradyumna-Chacham/CSC510-SE-Group17/actions)
+[![Frontend Tests](https://img.shields.io/badge/Frontend_Tests-82%25_Coverage-brightgreen.svg?logo=vitest&logoColor=white)](https://github.com/Pradyumna-Chacham/CSC510-SE-Group17/actions)
+[![Build Status](https://img.shields.io/badge/Build-Passing-brightgreen.svg?logo=github&logoColor=white)](https://github.com/Pradyumna-Chacham/CSC510-SE-Group17/actions)
+[![License](https://img.shields.io/badge/License-MIT-yellow.svg)](https://github.com/Pradyumna-Chacham/CSC510-SE-Group17/blob/main/proj2/LICENSE.md)
 [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.XXXXXX.svg)](https://doi.org/10.5281/zenodo.XXXXXX)
 
-## Code Quality & Testing
-
-[![ESLint](https://img.shields.io/badge/Code_Style-ESLint-4B32C3.svg?logo=eslint&logoColor=white)](https://eslint.org/)
-[![Pytest](https://img.shields.io/badge/Testing-Pytest-0A9EDC.svg?logo=pytest&logoColor=white)](https://pytest.org/)
-[![Vitest](https://img.shields.io/badge/Frontend_Testing-Vitest-6E9F18.svg?logo=vitest&logoColor=white)](https://vitest.dev/)
-[![Coverage](https://img.shields.io/badge/Coverage-pytest--cov-brightgreen.svg)](https://pytest-cov.readthedocs.io/)
-
 ---
-
 ## 🌟 Project Overview
 
 **ReqEngine** is an intelligent requirements engineering tool built on **FastAPI** that uses a fine-tuned **Large Language Model (LLaMA 3.2 3B Instruct)** to automatically transform unstructured textual requirements into structured, high-quality **Use Case Specifications**. It is engineered for efficiency, accuracy, and reliability across documents of any size.
 
 ---
 
+## 👥 Intended Users
+
+### 🎯 Primary Users
+- **Requirements Engineers**: Professionals who gather, analyze, and document software requirements
+- **Business Analysts**: Specialists who bridge business needs with technical solutions
+- **Product Managers**: Leaders who define product features and user stories
+- **Software Architects**: Designers who need structured requirements for system design
+
+### 🏢 Target Organizations
+- **Software Development Companies**: Teams building custom applications
+- **Consulting Firms**: Organizations managing multiple client projects
+- **Enterprise IT Departments**: Internal teams developing business applications
+- **Educational Institutions**: Academic projects and research in requirements engineering
+
+### 💼 Use Cases
+- **Legacy System Modernization**: Extract requirements from old documentation
+- **Agile Sprint Planning**: Convert user stories into detailed use cases
+- **Client Requirements Analysis**: Process client documents into structured specifications
+- **Compliance Documentation**: Generate audit-ready requirement documentation
+- **Project Handovers**: Standardize requirements across teams and vendors
+
+---
+
+## 📋 Use Case Examples
+
+### 🏦 **Example 1: E-commerce Platform**
+
+**Input Text:**
+> "The system should allow customers to browse products, add items to their shopping cart, and checkout securely. Customers must be able to create accounts, login, and view their order history. The system should send email confirmations after purchases."
+
+**ReqEngine Output:**
+- **Use Case 1**: Customer Account Registration
+- **Use Case 2**: Customer Login Authentication  
+- **Use Case 3**: Product Catalog Browsing
+- **Use Case 4**: Shopping Cart Management
+- **Use Case 5**: Secure Payment Processing
+- **Use Case 6**: Order History Viewing
+- **Use Case 7**: Email Notification System
+
+---
+
+### 🏥 **Example 2: Healthcare Management System**
+
+**Input Document:** *Patient Management Requirements (PDF)*
+> "Healthcare providers need to manage patient records, schedule appointments, and track medical history. The system must ensure HIPAA compliance and allow different access levels for doctors, nurses, and administrative staff."
+
+**ReqEngine Output:**
+```json
+{
+  "id": 1,
+  "title": "Healthcare Provider Manages Patient Records",
+  "preconditions": [
+    "Provider has valid credentials",
+    "Patient exists in system",
+    "HIPAA compliance enabled"
+  ],
+  "main_flow": [
+    "Provider logs into system",
+    "Provider searches for patient",
+    "System displays patient record",
+    "Provider reviews/updates medical information"
+  ],
+  "stakeholders": ["Healthcare Provider", "Patient", "System Administrator"]
+}
+```
+
+---
+
+### 💰 **Example 3: Banking Application**
+
+**Input:** *Legacy System Documentation*
+> "Account holders should be able to transfer money between accounts, check balances, and receive transaction alerts. The system must support multiple currencies and comply with financial regulations."
+
+**Generated Use Cases:**
+1. **Account Balance Inquiry** - Real-time balance checking
+2. **Inter-Account Money Transfer** - Secure fund transfers  
+3. **Transaction Alert Management** - SMS/Email notifications
+4. **Multi-Currency Support** - Currency conversion handling
+5. **Regulatory Compliance Reporting** - Audit trail generation
+
+---
 ## 🏗️ Project Structure
 
 ### Backend (FastAPI + Python)
@@ -64,7 +141,7 @@ frontend/
 - **Smart Use Case Extraction**: Automatically analyzes input text to estimate the number of distinct use cases
 - **Dynamic Token Budgeting**: Adapts LLM response length based on content complexity
 - **Semantic Duplicate Detection**: Uses Sentence Transformers to identify and prevent duplicate requirements
-- **Multi-format Document Support**: Processes PDF, DOCX, TXT, and Markdown files
+- **Multi-format Document Support**: Processes PDF, DOCX, and Markdown files
 
 ### 📊 Advanced Analytics
 - **Quality Validation**: Automatically validates structure and completeness of extracted use cases
@@ -75,10 +152,6 @@ frontend/
 ### 🚀 Export Capabilities
 - **Microsoft Word (.docx)**: Professional specification documents
 - **Markdown (.md)**: Documentation-ready format
-- **PlantUML**: Use case diagram generation
-- **JSON**: Structured data for programmatic access
-- **JIRA**: Direct integration format
-- **HTML**: Web-ready presentations
 
 ---
 
@@ -106,7 +179,7 @@ frontend/
    uvicorn main:app --reload
    ```
 
-The service will be available at `http://127.0.0.1:8000`. Interact with the API documentation at `http://127.0.0.1:8000/docs`.
+The service will be available at `http://127.0.0.1:8000`.
 
 ---
 
@@ -188,7 +261,7 @@ pytest -v tests/test_main.py    # Run specific test file
 ```
 
 **Test Statistics:**
-- **Total Tests**: 45+ comprehensive test cases
+- **Total Tests**: 90+ comprehensive test cases
 - **Coverage Target**: 80%+ code coverage
 - **Test Categories**: Unit, Integration, and API tests
 - **Test Files**: 8 test modules covering all major components
@@ -210,7 +283,7 @@ npm run test:ui               # Run with UI interface
 ```
 
 **Test Statistics:**
-- **Total Tests**: 35+ component and integration tests
+- **Total Tests**: 100+ component and integration tests
 - **Coverage Target**: 80%+ code coverage
 - **Test Categories**: Component, Integration, and User interaction tests
 - **Test Files**: 15+ test files across components and pages
@@ -298,6 +371,155 @@ response = requests.post('http://localhost:8000/parse_use_case_document/',
 5. Commit changes (`git commit -m 'Add amazing feature'`)
 6. Push to branch (`git push origin feature/amazing-feature`)
 7. Open a Pull Request
+
+---
+
+## � Troubleshooting
+
+### 🚨 Common Issues and Solutions
+
+#### **Backend Issues**
+
+**1. Model Loading Errors**
+```bash
+# Problem: HuggingFace authentication failed
+# Error: "Repository not found" or "Access denied"
+
+# Solution: Set up HuggingFace token
+export HF_TOKEN="your_huggingface_token_here"
+# Windows: set HF_TOKEN=your_huggingface_token_here
+
+# Verify token: 
+huggingface-cli login
+```
+
+**2. CUDA/GPU Memory Issues**
+```bash
+# Problem: "RuntimeError: CUDA out of memory"
+# Solution: Force CPU usage
+export CUDA_VISIBLE_DEVICES=""
+
+# Or reduce batch size in main.py
+# max_length=1024  # Instead of 4096
+```
+
+**3. Database Lock Errors**
+```bash
+# Problem: "database is locked"
+# Solution: Close all connections and restart
+pkill -f "python main.py"
+rm -f requirements.db test_requirements*.db
+python main.py
+```
+
+**4. Vector Store Issues**
+```bash
+# Problem: ChromaDB dimension errors
+# Solution: Reset vector store
+rm -rf vector_store/
+# Restart the application to rebuild embeddings
+```
+
+#### **Frontend Issues**
+
+**5. Module Not Found Errors**
+```bash
+# Problem: "Module not found" or dependency issues
+# Solution: Clean install
+rm -rf node_modules package-lock.json
+npm install
+
+# Verify Node.js version (requires 18+)
+node --version
+```
+
+**6. Build Failures**
+```bash
+# Problem: Vite build fails
+# Solution: Clear cache and rebuild
+npm run build --clear-cache
+
+# Check for ESLint errors
+npm run lint
+```
+
+**7. API Connection Issues**
+```bash
+# Problem: Frontend can't connect to backend
+# Solution: Verify backend is running
+curl http://localhost:8000/health
+
+# Check CORS settings in main.py
+# Ensure frontend URL is allowed
+```
+
+#### **Installation Issues**
+
+**8. Python Version Conflicts**
+```bash
+# Problem: Python version incompatibility
+# Solution: Use Python 3.9+
+python --version  # Should show 3.9+
+
+# Create fresh virtual environment
+python -m venv fresh_venv
+source fresh_venv/bin/activate  # Linux/Mac
+fresh_venv\Scripts\activate      # Windows
+```
+
+**9. Dependency Conflicts**
+```bash
+# Problem: Package version conflicts
+# Solution: Install specific versions
+pip install --upgrade pip
+pip install -r requirements.txt --force-reinstall
+```
+
+**10. Port Already in Use**
+```bash
+# Problem: "Address already in use"
+# Solution: Find and kill processes
+# Windows:
+netstat -ano | findstr :8000
+taskkill /PID <PID> /F
+
+# Linux/Mac:
+lsof -ti:8000 | xargs kill -9
+```
+
+### 🆘 Getting Help
+
+**Before Reporting Issues:**
+1. Check this troubleshooting guide
+2. Search [existing GitHub issues](https://github.com/Pradyumna-Chacham/CSC510-SE-Group17/issues)
+3. Verify you're using supported versions (Python 3.9+, Node.js 18+)
+
+**When Reporting Issues:**
+- Include error messages (full stack traces)
+- Specify your operating system and versions
+- Provide steps to reproduce the problem
+- Attach relevant log files if available
+
+**Support Channels:**
+- **GitHub Issues**: Primary support channel
+- **Documentation**: See [docs/](docs/) folder for detailed guides
+- **Contributing**: See [CONTRIBUTING.md](docs/CONTRIBUTING.md) for development help
+
+---
+
+## �📖 Citation
+
+If you use ReqEngine in your research or project, please cite it as:
+
+```bibtex
+@software{reqengine2025,
+  title={ReqEngine: Intelligent Requirements Engineering Tool},
+  author={ReqEngine Development Team},
+  year={2025},
+  url={https://github.com/Pradyumna-Chacham/CSC510-SE-Group17},
+  note={AI-powered tool for transforming unstructured requirements into structured use cases}
+}
+```
 
 ---
 

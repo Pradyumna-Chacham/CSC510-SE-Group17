@@ -125,10 +125,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 ## 🤝 Contributors
 
 ### Core Development Team
-- **Pradyumna Chacham** - Project Lead, Backend Architecture
-- **Sai Mahathi Suryadevara** - Frontend Development, UI/UX
-- **Sadana Ragoor** - AI/ML Integration, Testing
-- **Sai Sumedh Kaveti** - Database Design, Documentation
+- **Pradyumna Chacham** 
+- **Sai Mahathi Suryadevara** 
+- **Sadana Ragoor** 
+- **Sai Sumedh Kaveti** 
 
 ### Academic Context
 - **Course**: CSC510 - Software Engineering
@@ -155,10 +155,17 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 ## 🔮 Future Roadmap
 
 ### Version 2.0.0 (Future)
-- Complete UI/UX redesign
-- Mobile application support
-- Enterprise features and integrations
-- Advanced AI model fine-tuning
+-Smart Use Case Summarization
+ Automatically create short summaries for use cases. Helps stakeholders grasp the core idea without reading long descriptions.
+
+-Customizable Use Case Card Themes
+ Switch between Light, Dark, or Colorful modes. Apply custom layouts and colors to make the tool personal and engaging.
+
+-User-Defined Session Renaming
+ Allow users to rename sessions directly from the sidebar. Makes session lists meaningful and easier to organize.
+
+-User Authentication & Accounts
+ Secure login and account management for personalized work. Enables team collaboration while keeping projects private.
 
 ---
 
