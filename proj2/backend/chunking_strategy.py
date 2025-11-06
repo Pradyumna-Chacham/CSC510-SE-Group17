@@ -40,8 +40,8 @@ class DocumentChunker:
         print(f"Estimated tokens: {int(char_count / 4):,}")
         print(f"Max tokens per chunk: {self.max_tokens:,}")
         
-        # If text is small enough, return as single chunk
-        if char_count <= self.max_chars_per_chunk:
+        # If text is small enough and strategy is auto, return as single chunk
+        if char_count <= self.max_chars_per_chunk and strategy == "auto":
             print(f"✅ Document fits in single chunk - no splitting needed\n")
             return [{
                 "chunk_id": 0,
@@ -50,6 +50,10 @@ class DocumentChunker:
                 "estimated_tokens": int(char_count / 4),
                 "strategy": "single"
             }]
+            
+        # Force chunking for non-auto strategies or large texts
+        if char_count > self.max_chars_per_chunk:
+            print(f"⚠️ Document exceeds chunk size - splitting required")
         
         # Auto-detect best strategy
         if strategy == "auto":
@@ -90,7 +94,7 @@ class DocumentChunker:
             return "section"
         
         # Check paragraph density
-        paragraphs = text.split('\n\n')
+        paragraphs = [p for p in re.split(r'\n\s*\n', text) if p.strip()]
         if len(paragraphs) >= 5:
             return "paragraph"
         
@@ -160,24 +164,27 @@ class DocumentChunker:
         sentences = [s.strip() for s in sentences if s.strip()]
         
         chunks = []
-        current_chunk = ""
         chunk_id = 0
+        current_sentences = []
         
         for sentence in sentences:
-            potential_chunk = current_chunk + " " + sentence if current_chunk else sentence
+            current_sentences.append(sentence)
+            current_text = " ".join(current_sentences)
             
-            if len(potential_chunk) > self.max_chars_per_chunk and current_chunk:
-                chunks.append(self._create_chunk_dict(chunk_id, current_chunk))
+            # If current chunk would exceed the limit
+            if len(current_text) * 4 > self.max_tokens * 4 and len(current_sentences) > 1:
+                # Keep all but the last sentence for the current chunk
+                chunk_text = " ".join(current_sentences[:-1])
+                chunks.append(self._create_chunk_dict(chunk_id, chunk_text))
                 chunk_id += 1
-                # Add overlap - include last 2 sentences in next chunk
-                last_sentences = ". ".join(current_chunk.split(". ")[-2:])
-                current_chunk = last_sentences + " " + sentence
-            else:
-                current_chunk = potential_chunk
+                
+                # Start new chunk with the last sentence from previous chunk for overlap
+                current_sentences = current_sentences[-2:] if len(current_sentences) > 2 else current_sentences[-1:]
         
-        if current_chunk.strip():
-            chunks.append(self._create_chunk_dict(chunk_id, current_chunk))
-        
+        # Add final chunk if there's remaining text
+        if current_sentences:
+            chunks.append(self._create_chunk_dict(chunk_id, " ".join(current_sentences)))
+            
         return chunks if chunks else [self._create_chunk_dict(0, text)]
     
     def _create_chunk_dict(self, chunk_id: int, text: str) -> Dict:

@@ -3,7 +3,11 @@ import { format } from 'date-fns';
 export const formatDate = (dateString) => {
   if (!dateString) return 'N/A';
   try {
-    return format(new Date(dateString), 'MMM dd, yyyy HH:mm');
+    const date = new Date(dateString);
+    if (isNaN(date.getTime())) {
+      return dateString;
+    }
+    return format(date, 'MMM dd, yyyy HH:mm');
   } catch {
     return dateString;
   }

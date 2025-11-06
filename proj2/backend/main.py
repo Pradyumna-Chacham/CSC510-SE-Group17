@@ -17,18 +17,17 @@ from db import (
     add_conversation_message, get_conversation_history,
     get_session_context, get_session_use_cases,
     add_session_summary, get_latest_summary, get_db_path,
-    get_use_case_by_id, update_use_case
+    get_use_case_by_id, update_use_case, migrate_db
 )
 from sentence_transformers import SentenceTransformer, util
 from rag_utils import build_memory_context
 from use_case_validator import UseCaseValidator
 from use_case_enrichment import enrich_use_case
 from export_utils import export_to_docx, export_to_plantuml, export_to_markdown
-from conflict_detector import detect_conflicts
 from document_parser import extract_text_from_file, validate_file_size, get_text_stats
 from chunking_strategy import DocumentChunker
 import traceback
-
+from groq import Groq
 app = FastAPI()
 
 # --- CORS ---
@@ -41,7 +40,13 @@ app.add_middleware(
 )
 
 # --- Initialize SQLite ---
-init_db()
+try:
+    init_db()      # Initialize database tables
+    migrate_db()   # Add new columns if needed
+except Exception as e:
+    print(f"Database initialization error: {str(e)}")
+    print("Attempting database reset...")
+    migrate_db(reset=True)  # Reset and recreate database
 
 # --- Schemas ---
 class UseCaseSchema(BaseModel):
@@ -83,10 +88,10 @@ from transformers import BitsAndBytesConfig
 
 # Configure 4-bit quantization for RTX 3050
 bnb_config = BitsAndBytesConfig(
-    load_in_4bit=True,                    # Enable 4-bit quantization
-    bnb_4bit_quant_type="nf4",            # Normal Float 4-bit
-    bnb_4bit_use_double_quant=True,       # Double quantization for extra compression
-    bnb_4bit_compute_dtype=torch.float16  # Compute in FP16
+    load_in_4bit=True,
+    bnb_4bit_quant_type="nf4",
+    bnb_4bit_use_double_quant=True,
+    bnb_4bit_compute_dtype=torch.float16
 )
 
 tokenizer = AutoTokenizer.from_pretrained(MODEL_NAME, token=token)
@@ -94,11 +99,11 @@ tokenizer = AutoTokenizer.from_pretrained(MODEL_NAME, token=token)
 # Load model with 4-bit quantization
 model = AutoModelForCausalLM.from_pretrained(
     MODEL_NAME,
-    quantization_config=bnb_config,  # ← 4-bit quantization
-    device_map="auto",               # Auto device placement
+    quantization_config=bnb_config,
+    device_map="auto",
     token=token,
     torch_dtype=torch.float16,
-    low_cpu_mem_usage=True           # Reduce CPU RAM usage
+    low_cpu_mem_usage=True
 )
 
 pipe = pipeline(
@@ -110,7 +115,8 @@ pipe = pipeline(
 
 print("✅ Model loaded successfully with 4-bit quantization!")
 print(f"   Model size: ~1.5GB (vs 6GB unquantized)")
-print(f"   Expected speedup: 2-3x faster\n")
+print(f"   Expected speedup: 2-3x faster\n") 
+
 
 # Initialize embedding model for duplicate detection
 embedder = SentenceTransformer("all-MiniLM-L6-v2")
@@ -120,7 +126,7 @@ chunker = DocumentChunker(max_tokens=3000)
 
 
 # ============================================================================
-# SMART USE CASE ESTIMATOR - NEW!
+# SMART USE CASE ESTIMATOR - FIXED!
 # ============================================================================
 
 class UseCaseEstimator:
@@ -140,7 +146,6 @@ class UseCaseEstimator:
         'send', 'receive', 'share', 'notify', 'alert',
         'configure', 'customize', 'manage', 'administer', 'control',
         'select', 'choose', 'pick', 'click', 'tap',
-        # Communication-specific verbs
         'message', 'chat', 'call', 'dial', 'connect',
         'sync', 'synchronize', 'refresh', 'reload',
         'flag', 'report', 'block', 'mute', 'unmute',
@@ -159,7 +164,26 @@ class UseCaseEstimator:
         'patient', 'doctor', 'nurse',
         'system', 'application', 'platform'
     ]
-    
+    @staticmethod
+    def count_conjunction_actions(text: str) -> int:
+        """
+        🔥 NEW: Detect compound actions split by 'and'
+        Example: "proceeds to checkout and selects payment" = 2 actions
+        """
+        text_lower = text.lower()
+        compound_action_count = 0
+        
+        # Split by 'and' and check if both sides have verbs
+        and_splits = re.split(r'\band\b', text_lower)
+        
+        if len(and_splits) >= 2:
+            for split in and_splits:
+                # Check if this split contains an action verb
+                has_action = any(verb in split for verb in UseCaseEstimator.ACTION_VERBS)
+                if has_action:
+                    compound_action_count += 1
+        
+        return max(1, compound_action_count) 
     @staticmethod
     def estimate_use_cases(text: str) -> Tuple[int, int, dict]:
         """
@@ -176,25 +200,30 @@ class UseCaseEstimator:
         sentences = [s.strip() for s in re.split(r'[.!?]+', text) if s.strip()]
         sentence_count = len(sentences)
         
-        # Count action verbs (each verb = potential use case)
+        # FIXED: Count action verbs (each UNIQUE verb = potential use case)
         action_count = 0
         found_actions = set()
         
         for verb in UseCaseEstimator.ACTION_VERBS:
-            # Look for verb patterns: "can login", "should search", "must add"
+            # Look for verb patterns
             patterns = [
                 rf'\b(?:can|should|must|may|will|shall)\s+{verb}\b',
-                rf'\b{verb}s?\b',  # "searches", "search"
+                rf'\b{verb}(?:s|ed|ing)?\b',  # matches: cancel, cancels, cancelled, canceling
             ]
+            
+            # Check if ANY pattern matches (don't count duplicates!)
+            verb_found = False
             for pattern in patterns:
-                matches = re.findall(pattern, text_lower)
-                if matches:
-                    action_count += len(matches)
-                    found_actions.add(verb)
+                if re.search(pattern, text_lower):
+                    verb_found = True
+                    break
+            
+            if verb_found:
+                found_actions.add(verb)
+                action_count += 1  # Count only ONCE per unique verb
         
-        # IMPORTANT: Calculate unique_actions HERE before using it
         unique_actions = len(found_actions)
-        
+        conjunction_action_count = UseCaseEstimator.count_conjunction_actions(text)
         # Count actors mentioned
         actor_count = sum(1 for actor in UseCaseEstimator.ACTORS if actor in text_lower)
         
@@ -203,8 +232,8 @@ class UseCaseEstimator:
         
         # Count bullet points or numbered lists (each = potential use case)
         bullet_patterns = [
-            r'^\s*[-*•]\s+',  # Bullet points
-            r'^\s*\d+\.\s+',  # Numbered lists
+            r'^\s*[-*•]\s+',
+            r'^\s*\d+\.\s+',
         ]
         list_items = 0
         for line in text.split('\n'):
@@ -220,6 +249,7 @@ class UseCaseEstimator:
             'action_verb_count': action_count,
             'unique_actions': unique_actions,
             'found_actions': list(found_actions),
+            'conjunction_action_count': conjunction_action_count,
             'actor_count': actor_count,
             'conjunction_splits': conjunction_splits,
             'list_items': list_items
@@ -230,8 +260,14 @@ class UseCaseEstimator:
         
         # Heuristic 1: Based on action verbs (most reliable)
         if action_count > 0:
-            # Use dampened approach: unique actions with multiplier
-            verb_estimate = min(unique_actions * 1.5, action_count * 0.8)
+            # FIXED: For very short text, use EXACT unique action count
+            if char_count < 150 and conjunction_action_count > unique_actions:
+                verb_estimate = conjunction_action_count
+            elif char_count < 100:
+                verb_estimate = unique_actions
+            else:
+                # For longer text, use dampened approach
+                verb_estimate = min(unique_actions * 1.5, action_count * 0.8)
             estimates.append(int(verb_estimate))
         
         # Heuristic 2: Based on list items (if structured)
@@ -239,7 +275,6 @@ class UseCaseEstimator:
             estimates.append(list_items)
         
         # Heuristic 3: Based on sentences (conservative)
-        # Only count sentences with action verbs
         sentences_with_actions = 0
         for sentence in sentences:
             sentence_lower = sentence.lower()
@@ -249,7 +284,6 @@ class UseCaseEstimator:
                 sentences_with_actions += 1
         
         if sentences_with_actions > 0:
-            # 60% of action-containing sentences
             estimates.append(int(sentences_with_actions * 0.6))
         
         # Heuristic 4: Based on character count (fallback)
@@ -265,25 +299,26 @@ class UseCaseEstimator:
             max_estimate = 3
         
         # Apply sensible bounds
-        min_estimate = max(2, min_estimate)  # At least 2
-        max_estimate = min(20, max_estimate)  # Cap at 20
+        min_estimate = max(1, min_estimate)  # FIXED: At least 1 (not 2)
+        max_estimate = min(20, max_estimate)
         
         # Adjust based on text size
         if char_count < 100:
-            max_estimate = min(max_estimate, 2)  # Very small = max 2
+            max_estimate = min(max_estimate, 2)
         elif char_count < 500:
-            max_estimate = min(max_estimate, 5)  # Small = max 5
+            max_estimate = min(max_estimate, 5)
         
         details['estimates'] = estimates
         details['sentences_with_actions'] = sentences_with_actions
         
         return min_estimate, max_estimate, details
+    
 
 
 def get_smart_max_use_cases(text: str) -> int:
     """
     Get intelligent estimate for max_use_cases parameter
-    MORE GENEROUS for long descriptive text
+    FIXED: Adaptive minimum based on text size
     """
     
     min_est, max_est, details = UseCaseEstimator.estimate_use_cases(text)
@@ -300,6 +335,8 @@ def get_smart_max_use_cases(text: str) -> int:
             actions_preview += f", +{len(details['found_actions']) - 8} more"
         print(f"    Actions: {actions_preview}")
     print(f"  • Unique actions: {details['unique_actions']}")
+    if details['conjunction_action_count'] > 1:
+        print(f"  • Compound actions detected: {details['conjunction_action_count']} (split by 'and')")
     print(f"  • Actors mentioned: {details['actor_count']}")
     if details['list_items'] > 0:
         print(f"  • List items: {details['list_items']}")
@@ -311,10 +348,14 @@ def get_smart_max_use_cases(text: str) -> int:
     # Improved logic based on text characteristics
     char_count = details['char_count']
     unique_actions = details['unique_actions']
+    conjunction_actions = details['conjunction_action_count']
     
+    # 🔥 FIXED: Prioritize conjunction detection for short compound text
+    if char_count < 150 and conjunction_actions >= 2:
+        smart_max = conjunction_actions
+        print(f"   Based on {conjunction_actions} compound actions (detected 'and' separator)")
     # For long descriptive text (>2000 chars), be more generous
-    if char_count > 2000:
-        # Use maximum estimate, not minimum
+    elif char_count > 2000:
         smart_max = max_est
         print(f"   Long text detected ({char_count} chars) - using upper estimate")
     elif unique_actions > 0:
@@ -327,18 +368,29 @@ def get_smart_max_use_cases(text: str) -> int:
         print(f"   Using minimum estimate (no clear actions detected)")
     
     # Apply size-based caps
-    if char_count < 100:
+    if char_count < 150 and conjunction_actions >= 2:
+        smart_max = max(smart_max, conjunction_actions)
+    elif char_count < 100:
         smart_max = min(smart_max, 2)
     elif char_count < 500:
         smart_max = min(smart_max, 5)
     elif char_count < 2000:
         smart_max = min(smart_max, 10)
     else:
-        # Large text: allow more use cases
         smart_max = min(smart_max, 20)
     
-    # Absolute bounds
-    smart_max = max(3, smart_max)  # At least 3
+    # FIXED: Adaptive minimum based on text size and action count
+    if char_count < 50 and unique_actions <= 1:
+        # Very short text with single action: allow exactly 1
+        smart_max = max(1, smart_max)
+        print(f"   Single action detected - allowing 1 use case")
+    elif char_count < 200:
+        # Short text: minimum 1 use case
+        smart_max = max(1, smart_max)
+    else:
+        # Longer text: minimum 2 use cases (might have implicit requirements)
+        smart_max = max(2, smart_max)
+    
     smart_max = min(smart_max, 20)  # Max 20
     
     print(f"✅ Final estimate: {smart_max} use cases")
@@ -347,32 +399,15 @@ def get_smart_max_use_cases(text: str) -> int:
     return smart_max
 
 
-
 def get_smart_token_budget(text: str, estimated_use_cases: int) -> int:
-    """
-    Calculate appropriate token budget based on estimated use cases
+    """Calculate appropriate token budget based on estimated use cases"""
     
-    Args:
-        text: Input text
-        estimated_use_cases: Number of use cases expected
-        
-    Returns:
-        Appropriate max_new_tokens value
-    """
-    
-    # Rule of thumb: ~150 tokens per use case (complete with all fields)
     base_tokens = estimated_use_cases * 120
-    
-    # Add overhead for JSON structure
     overhead = 80
-    
-    # Calculate total
     token_budget = base_tokens + overhead
+    token_budget = max(300, min(token_budget, 1200))
     
-    # Apply bounds
-    token_budget = max(300, min(token_budget, 1200))  # Between 300 and 1500
-    
-    print(f"💰 Token budget: {token_budget} tokens ({estimated_use_cases} use cases × 150 + overhead)\n")
+    print(f"💰 Token budget: {token_budget} tokens ({estimated_use_cases} use cases × 120 + overhead)\n")
     
     return token_budget
 
@@ -381,47 +416,29 @@ def get_smart_token_budget(text: str, estimated_use_cases: int) -> int:
 # HELPER FUNCTIONS
 # ============================================================================
 def clean_llm_json(json_str: str) -> str:
-    """
-    Clean JSON from LLM output - handles escaped quotes and other issues
-    """
+    """Clean JSON from LLM output"""
     
     print("🔧 Cleaning LLM JSON output...")
     
-    # Remove markdown code blocks
     json_str = re.sub(r'^```json\s*', '', json_str.strip())
     json_str = re.sub(r'^```\s*', '', json_str.strip())
     json_str = re.sub(r'\s*```$', '', json_str.strip())
     
-    # Remove any text before the first [
     first_bracket = json_str.find('[')
     if first_bracket > 0:
         json_str = json_str[first_bracket:]
     
-    # Remove any text after the last ]
     last_bracket = json_str.rfind(']')
     if last_bracket != -1:
         json_str = json_str[:last_bracket + 1]
     
-    # FIX ESCAPED QUOTES: Replace \" with " (the LLM is over-escaping)
-    # This is safe because we're inside a JSON string context
     json_str = json_str.replace(r'\"', '"')
-    
-    # But now we need to properly escape quotes that should be escaped
-    # This is tricky - let's use a different approach
-    
-    # Actually, let's try a simpler fix:
-    # Replace \\" with " (double-escaped quotes)
     json_str = json_str.replace(r'\\"', '"')
-    
-    # Standard cleanups
     json_str = json_str.replace("None", "null")
     json_str = json_str.replace("True", "true") 
     json_str = json_str.replace("False", "false")
-    
-    # Remove trailing commas
     json_str = re.sub(r',(\s*[}\]])', r'\1', json_str)
     
-    # Ensure proper closing brackets
     open_braces = json_str.count('{')
     close_braces = json_str.count('}')
     if open_braces > close_braces:
@@ -435,8 +452,10 @@ def clean_llm_json(json_str: str) -> str:
     print("✅ JSON cleaning complete\n")
     
     return json_str
+
+
 def flatten_use_case(data: dict) -> dict:
-    """Convert nested use case data to flat structure with safe type handling"""
+    """Convert nested use case data to flat structure"""
     flat = {"title": data.get("title", "Untitled")}
     
     def ensure_list(value, placeholder=None):
@@ -459,7 +478,7 @@ def flatten_use_case(data: dict) -> dict:
 
 
 def compute_usecase_embedding(use_case: UseCaseSchema):
-    """Combine title and main_flow into a single embedding vector."""
+    """Combine title and main_flow into embedding vector"""
     text = use_case.title + " " + " ".join(use_case.main_flow)
     return embedder.encode(text, convert_to_tensor=True)
 
@@ -472,7 +491,6 @@ def ensure_string_list(value) -> List[str]:
             if isinstance(item, str):
                 result.append(item)
             elif isinstance(item, (list, tuple)):
-                # Flatten nested lists
                 result.extend([str(x) for x in item])
             elif isinstance(item, dict):
                 result.append(json.dumps(item))
@@ -484,7 +502,6 @@ def ensure_string_list(value) -> List[str]:
     elif value:
         return [str(value)]
     return []
-
 
 # ============================================================================
 # SMART SINGLE-STAGE EXTRACTION - UPDATED!
@@ -510,6 +527,13 @@ def extract_use_cases_single_stage(text: str, memory_context: str, max_use_cases
 
 You are a requirements analyst. Extract use cases from text and return them as JSON.
 
+CRITICAL RULES:
+1. Each action mentioned should be a SEPARATE use case
+2. DO NOT create duplicate use cases with the same title
+3. Each use case must be unique and distinct
+4. Split compound actions: "logs in and adds" → 2 separate use cases
+
+
 <|eot_id|><|start_header_id|>user<|end_header_id|>
 
 {memory_context}
@@ -517,31 +541,36 @@ You are a requirements analyst. Extract use cases from text and return them as J
 Requirements:
 {text}
 
-Extract approximately {max_use_cases} use cases from the requirements above.
+Extract approximately {max_use_cases} UNIQUE, DISTINCT use cases from the requirements above.
 
-Return a JSON array of use cases. Each use case must have these fields:
-- title: string (format: "Actor action object")
-- preconditions: array of strings
-- main_flow: array of strings (4-6 steps)
-- sub_flows: array of strings
-- alternate_flows: array of strings
-- outcomes: array of strings
-- stakeholders: array of strings
+IMPORTANT: 
+- "User logs in and adds to cart" → Create 2 separate use cases:
+  1. "User logs in to system"  
+  2. "User adds items to cart"
+- DO NOT create the same use case twice
+- Each use case must have a different title
 
-Example format:
+Return a JSON array where EACH use case has UNIQUE title and purpose:
 [
   {{
-    "title": "User searches for restaurants",
-    "preconditions": ["User has internet connection", "Location services enabled"],
-    "main_flow": ["User opens app", "User enters search criteria", "System queries database", "System displays results", "User views results"],
-    "sub_flows": ["User can filter results", "User can sort by rating"],
-    "alternate_flows": ["If no results: System suggests nearby areas", "If connection fails: System shows cached results"],
-    "outcomes": ["User sees restaurant list", "Search is logged"],
-    "stakeholders": ["User", "System", "Database"]
+    "title": "User logs in to system",
+    "preconditions": ["User has valid credentials"],
+    "main_flow": ["User opens app", "User enters credentials", "System validates", "User is authenticated"],
+    "sub_flows": ["User can reset password", "User can remember device"],
+    "alternate_flows": ["If invalid: System shows error", "If locked: System requires unlock"],
+    "outcomes": ["User is logged in successfully"],
+    "stakeholders": ["User", "Authentication System"]
+  }},
+  {{
+    "title": "User adds items to shopping cart",
+    "preconditions": ["User is logged in", "Products are available"],
+    "main_flow": ["User browses products", "User selects product", "User clicks add to cart", "System adds item", "Cart is updated"],
+    "sub_flows": ["User can adjust quantity", "User can view cart"],
+    "alternate_flows": ["If out of stock: System notifies user", "If cart full: System prompts checkout"],
+    "outcomes": ["Item added to cart successfully"],
+    "stakeholders": ["User", "Shopping Cart System", "Inventory System"]
   }}
 ]
-
-Return only the JSON array, no other text.
 
 <|eot_id|><|start_header_id|>assistant<|end_header_id|>
 
@@ -1201,13 +1230,17 @@ def parse_use_case_fast(request: InputText):
     existing_context = get_session_context(session_id)
     
     if existing_context is None:
-        # Session doesn't exist - create it with provided context
+        # Generate a title for new session using LLM
+        session_title = generate_session_title(request.raw_text, use_llm=True)
+        
+        # Session doesn't exist - create it with provided context and title
         create_session(
             session_id=session_id,
             project_context=request.project_context or "",
-            domain=request.domain or ""
+            domain=request.domain or "",
+            session_title=session_title
         )
-        print(f"✅ Created new session: {session_id}")
+        print(f"✅ Created new session: {session_id} with title: {session_title}")
     else:
         # Session exists - only update if NEW values are provided
         # This prevents overwriting with empty strings
@@ -1343,38 +1376,61 @@ def parse_use_case_fast(request: InputText):
         for uc in all_use_cases:
             uc_emb = compute_usecase_embedding(uc)
             is_duplicate = False
-            
             if existing_embeddings is not None:
                 cos_sim = util.cos_sim(uc_emb, existing_embeddings)
                 max_sim = float(torch.max(cos_sim))
                 if max_sim >= threshold:
                     is_duplicate = True
                     print(f"🔄 Duplicate detected ({max_sim:.2f}): {uc.title[:50]}")
-            
+    
             if not is_duplicate:
                 conn = sqlite3.connect(db_path)
                 c = conn.cursor()
                 c.execute("""
-                    INSERT INTO use_cases 
-                    (session_id, title, preconditions, main_flow, sub_flows, alternate_flows, outcomes, stakeholders)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-                """, (
-                    session_id, uc.title,
-                    json.dumps(uc.preconditions),
-                    json.dumps(uc.main_flow),
-                    json.dumps(uc.sub_flows),
-                    json.dumps(uc.alternate_flows),
-                    json.dumps(uc.outcomes),
-                    json.dumps(uc.stakeholders)
-                ))
+            INSERT INTO use_cases 
+            (session_id, title, preconditions, main_flow, sub_flows, alternate_flows, outcomes, stakeholders)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        """, (
+            session_id, uc.title,
+            json.dumps(uc.preconditions),
+            json.dumps(uc.main_flow),
+            json.dumps(uc.sub_flows),
+            json.dumps(uc.alternate_flows),
+            json.dumps(uc.outcomes),
+            json.dumps(uc.stakeholders)
+        ))
+        
+        # Get the inserted ID
+                use_case_id = c.lastrowid
                 conn.commit()
                 conn.close()
-                
-                results.append({"status": "stored", "title": uc.title})
+        
+        # NEW CODE - Return FULL use case details
+                results.append({
+            "status": "stored",
+            "id": use_case_id,
+            "title": uc.title,
+            "preconditions": uc.preconditions,
+            "main_flow": uc.main_flow,
+            "sub_flows": uc.sub_flows,
+            "alternate_flows": uc.alternate_flows,
+            "outcomes": uc.outcomes,
+            "stakeholders": uc.stakeholders
+        })
                 stored_count += 1
                 print(f"💾 Stored: {uc.title}")
             else:
-                results.append({"status": "duplicate_skipped", "title": uc.title})
+        # NEW CODE - Return full details even for duplicates
+                results.append({
+            "status": "duplicate_skipped",
+            "title": uc.title,
+            "preconditions": uc.preconditions,
+            "main_flow": uc.main_flow,
+            "sub_flows": uc.sub_flows,
+            "alternate_flows": uc.alternate_flows,
+            "outcomes": uc.outcomes,
+            "stakeholders": uc.stakeholders
+        })
         
         total_time = time.time() - start_time
         
@@ -1536,14 +1592,16 @@ def refine_use_case_endpoint(request: RefinementRequest):
         raise HTTPException(status_code=404, detail="Use case not found")
     
     # Build refinement prompt based on type
-    if request.refinement_type == "add_detail":
-        instruction = "Add more detailed steps to the main flow, breaking down each action into smaller, more specific steps."
-    elif request.refinement_type == "add_alternates":
-        instruction = "Identify and add alternate flows, including error scenarios, edge cases, and alternative paths through the use case."
-    elif request.refinement_type == "add_error_handling":
-        instruction = "Add comprehensive error handling scenarios, including what happens when things go wrong, timeouts, validation failures, and system errors."
-    elif request.refinement_type == "custom":
-        instruction = request.custom_instruction or "Improve the use case quality."
+    if request.refinement_type == "more_main_flows":
+        instruction = "Add more main flows (additional primary flows or steps) to this use case. Expand the main flow with more detailed or additional steps."
+    elif request.refinement_type == "more_sub_flows":
+        instruction = "Add more sub flows to this use case. Include additional branching scenarios, related flows, or secondary paths."
+    elif request.refinement_type == "more_alternate_flows":
+        instruction = "Add more alternate flows to this use case. Include alternative paths, edge cases, error scenarios, and exception handling flows."
+    elif request.refinement_type == "more_preconditions":
+        instruction = "Add more preconditions to this use case. Include additional requirements, system states, or conditions that must be met before the use case can execute."
+    elif request.refinement_type == "more_stakeholders":
+        instruction = "Add more stakeholders to this use case. Identify additional actors, users, systems, or entities involved in this use case."
     else:
         instruction = "Improve the overall quality and completeness of this use case."
     
@@ -1602,82 +1660,6 @@ Return the refined use case in the same JSON format, with improvements applied.
         raise HTTPException(status_code=500, detail=f"Refinement failed: {str(e)}")
 
 
-@app.get("/session/{session_id}/metrics")
-def get_session_metrics(session_id: str):
-    """Get quality metrics for the session"""
-    
-    use_cases = get_session_use_cases(session_id)
-    
-    if not use_cases:
-        return {
-            "total_use_cases": 0,
-            "message": "No use cases found for this session"
-        }
-    
-    # Calculate various metrics
-    total_uc = len(use_cases)
-    
-    avg_preconditions = sum(len(uc['preconditions']) for uc in use_cases) / total_uc
-    avg_main_flow_steps = sum(len(uc['main_flow']) for uc in use_cases) / total_uc
-    avg_outcomes = sum(len(uc['outcomes']) for uc in use_cases) / total_uc
-    
-    with_sub_flows = len([uc for uc in use_cases if uc['sub_flows'] != ["Optional features available"]])
-    with_alternate_flows = len([uc for uc in use_cases if uc['alternate_flows'] != ["Error handling included"]])
-    
-    # Extract unique actors
-    all_stakeholders = set()
-    for uc in use_cases:
-        all_stakeholders.update(uc['stakeholders'])
-    
-    # Calculate completeness score
-    def calc_completeness(use_cases):
-        score = 0
-        max_score = len(use_cases) * 6
-        
-        for uc in use_cases:
-            if len(uc['preconditions']) > 1:
-                score += 1
-            if len(uc['main_flow']) >= 3:
-                score += 1
-            if uc['sub_flows'] != ["Optional features available"]:
-                score += 1
-            if uc['alternate_flows'] != ["Error handling included"]:
-                score += 1
-            if len(uc['outcomes']) > 0:
-                score += 1
-            if len(uc['stakeholders']) >= 2:
-                score += 1
-        
-        return (score / max_score) * 100 if max_score > 0 else 0
-    
-    completeness_score = calc_completeness(use_cases)
-    
-    # Detect conflicts
-    conflicts = detect_conflicts(use_cases)
-    
-    return {
-        "total_use_cases": total_uc,
-        "averages": {
-            "preconditions": round(avg_preconditions, 2),
-            "main_flow_steps": round(avg_main_flow_steps, 2),
-            "outcomes": round(avg_outcomes, 2)
-        },
-        "coverage": {
-            "with_sub_flows": with_sub_flows,
-            "with_alternate_flows": with_alternate_flows,
-            "sub_flows_percentage": round((with_sub_flows / total_uc) * 100, 2),
-            "alternate_flows_percentage": round((with_alternate_flows / total_uc) * 100, 2)
-        },
-        "stakeholders": list(all_stakeholders),
-        "completeness_score": round(completeness_score, 2),
-        "conflicts": conflicts,
-        "quality_summary": {
-            "excellent": len([uc for uc in use_cases if UseCaseValidator.calculate_quality_score(uc) >= 80]),
-            "good": len([uc for uc in use_cases if 60 <= UseCaseValidator.calculate_quality_score(uc) < 80]),
-            "needs_improvement": len([uc for uc in use_cases if UseCaseValidator.calculate_quality_score(uc) < 60])
-        }
-    }
-
 
 @app.post("/query")
 def query_requirements(request: QueryRequest):
@@ -1691,11 +1673,27 @@ def query_requirements(request: QueryRequest):
             "relevant_use_cases": []
         }
     
-    context = json.dumps(use_cases, indent=2)
+    # Remove database IDs from use cases before sending to LLM
+    # This prevents use case numbers from appearing in explanations
+    use_cases_for_context = []
+    for uc in use_cases:
+        use_case_without_id = {
+            "title": uc.get("title", ""),
+            "preconditions": uc.get("preconditions", []),
+            "main_flow": uc.get("main_flow", []),
+            "sub_flows": uc.get("sub_flows", []),
+            "alternate_flows": uc.get("alternate_flows", []),
+            "outcomes": uc.get("outcomes", []),
+            "stakeholders": uc.get("stakeholders", [])
+        }
+        use_cases_for_context.append(use_case_without_id)
+    
+    context = json.dumps(use_cases_for_context, indent=2)
     
     prompt = f"""<|begin_of_text|><|start_header_id|>system<|end_header_id|>
 
 You are a requirements analyst assistant. Answer questions about use cases clearly and concisely.
+IMPORTANT: Do NOT mention use case IDs, numbers, or database identifiers in your responses. Only refer to use cases by their titles.
 
 <|eot_id|><|start_header_id|>user<|end_header_id|>
 
@@ -1704,7 +1702,7 @@ Use cases:
 
 Question: {request.question}
 
-Provide a clear, helpful answer based on the use cases above.
+Provide a clear, helpful answer based on the use cases above. Do not include any use case numbers or IDs in your response.
 
 <|eot_id|><|start_header_id|>assistant<|end_header_id|>
 
@@ -1721,6 +1719,18 @@ Provide a clear, helpful answer based on the use cases above.
         )
         
         answer = outputs[0]["generated_text"].strip()
+        
+        # Post-process to remove any use case numbers that might have slipped through
+        # Remove patterns like "Use Case 249", "Use Case 248", "UC 253", etc.
+        answer = re.sub(r'\(Use Case\s+\d+\)', '', answer, flags=re.IGNORECASE)
+        answer = re.sub(r'\(Use Cases\s+\d+[,\s]*\d*\)', '', answer, flags=re.IGNORECASE)
+        answer = re.sub(r'Use Case\s+\d+', '', answer, flags=re.IGNORECASE)
+        answer = re.sub(r'UC\s+\d+', '', answer, flags=re.IGNORECASE)
+        # Clean up any double spaces or trailing commas/spaces
+        answer = re.sub(r'\s+', ' ', answer)
+        answer = re.sub(r'\s*,\s*,', ',', answer)
+        answer = re.sub(r'\s*,\s*\.', '.', answer)
+        answer = answer.strip()
         
         # Find relevant use cases
         question_lower = request.question.lower()
@@ -1761,24 +1771,6 @@ def export_docx_endpoint(session_id: str):
         raise HTTPException(status_code=500, detail=f"Export failed: {str(e)}")
 
 
-@app.get("/session/{session_id}/export/plantuml")
-def export_plantuml_endpoint(session_id: str):
-    """Export as PlantUML diagram"""
-    
-    use_cases = get_session_use_cases(session_id)
-    
-    if not use_cases:
-        raise HTTPException(status_code=404, detail="No use cases found for this session")
-    
-    try:
-        plantuml_code = export_to_plantuml(use_cases)
-        return {
-            "plantuml": plantuml_code,
-            "instructions": "Copy this code to https://www.plantuml.com/plantuml/ or use a PlantUML plugin"
-        }
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Export failed: {str(e)}")
-
 
 @app.get("/session/{session_id}/export/markdown")
 def export_markdown_endpoint(session_id: str):
@@ -1801,27 +1793,6 @@ def export_markdown_endpoint(session_id: str):
         raise HTTPException(status_code=500, detail=f"Export failed: {str(e)}")
 
 
-@app.get("/session/{session_id}/conflicts")
-def get_conflicts(session_id: str):
-    """Detect conflicting requirements in the session"""
-    
-    use_cases = get_session_use_cases(session_id)
-    
-    if not use_cases:
-        return {"conflicts": [], "message": "No use cases to analyze"}
-    
-    conflicts = detect_conflicts(use_cases)
-    
-    return {
-        "total_conflicts": len(conflicts),
-        "conflicts": conflicts,
-        "severity": {
-            "high": len([c for c in conflicts if c.get("severity") == "high"]),
-            "medium": len([c for c in conflicts if c.get("severity") == "medium"]),
-            "low": len([c for c in conflicts if c.get("severity") == "low"])
-        }
-    }
-
 
 @app.delete("/session/{session_id}")
 def clear_session(session_id: str):
@@ -1842,30 +1813,179 @@ def clear_session(session_id: str):
     return {"message": f"Session {session_id} cleared successfully"}
 
 
+def generate_session_title(first_user_message: str, max_length: int = 50, use_llm: bool = False) -> str:
+    """
+    Generate a concise, meaningful session title from the first user message.
+    
+    Strategy:
+    1. Quick extraction for initial loads (use_llm=False)
+    2. LLM-based title generation for important views (use_llm=True)
+    """
+    if not first_user_message:
+        return "New Session"
+
+    text = first_user_message.strip()
+    
+    # Handle file uploads specially
+    if text.startswith("Uploaded document:"):
+        filename = text.replace("Uploaded document:", "").strip()
+        base_name = filename.rsplit('.', 1)[0] if '.' in filename else filename
+        clean_name = base_name.replace('_', ' ').replace('-', ' ').title()
+        return clean_name[:max_length] if len(clean_name) <= max_length else clean_name[:max_length-3] + "..."
+
+    # For initial loads, use quick keyword extraction
+    if not use_llm:
+        return generate_fallback_title(text, max_length)
+
+    # For important views, use LLM
+    try:
+        prompt = f"""<|begin_of_text|><|start_header_id|>system<|end_header_id|>
+You are a requirements analyst. Create a concise session title (4-7 words) that summarizes this requirement text.
+<|eot_id|><|start_header_id|>user<|end_header_id|>
+Requirements text:
+{text[:300]}
+Generate a short, descriptive title (4-7 words):
+<|eot_id|><|start_header_id|>assistant<|end_header_id|>
+"""
+        outputs = pipe(
+            prompt,
+            max_new_tokens=30,
+            temperature=0.3,
+            top_p=0.85,
+            do_sample=True,
+            return_full_text=False
+        )
+        
+        title = outputs[0]["generated_text"].strip()
+        title = title.replace('\n', ' ').strip().strip('"\'.,;:')
+        
+        word_count = len(title.split())
+        if 3 <= word_count <= 10 and len(title) <= max_length:
+            return title
+            
+    except Exception as e:
+        print(f"⚠️  LLM title generation failed: {e}")
+    
+    return generate_fallback_title(text, max_length)
+
+def generate_fallback_title(text: str, max_length: int = 50) -> str:
+    """
+    Fallback method: Extract key concepts and build a title
+    Uses simple NLP techniques without LLM
+    """
+    
+    # Extract key action verbs and nouns
+    action_verbs = [
+        'login', 'register', 'search', 'browse', 'add', 'create',
+        'update', 'delete', 'manage', 'view', 'edit', 'track',
+        'checkout', 'purchase', 'order', 'pay', 'upload', 'download'
+    ]
+    
+    important_nouns = [
+        'user', 'customer', 'admin', 'system', 'product', 'order',
+        'cart', 'payment', 'account', 'profile', 'restaurant',
+        'delivery', 'notification', 'report', 'document', 'file'
+    ]
+    
+    text_lower = text.lower()
+    
+    # Find mentioned verbs and nouns
+    found_verbs = [v for v in action_verbs if v in text_lower]
+    found_nouns = [n for n in important_nouns if n in text_lower]
+    
+    # Build title from found keywords
+    if found_verbs and found_nouns:
+        # Format: "User Login And Product Search"
+        verb_part = ' And '.join([v.title() for v in found_verbs[:2]])
+        noun_part = found_nouns[0].title()
+        title = f"{noun_part} {verb_part}"
+        
+        if len(title) <= max_length:
+            return title
+    
+    # If keywords don't work, use first meaningful sentence
+    sentences = [s.strip() for s in re.split(r'[.!?]+', text) if len(s.strip()) > 10]
+    
+    if sentences:
+        first_sentence = sentences[0]
+        
+        # Remove common prefixes
+        prefixes = ['the system should', 'the user can', 'user can', 'system should']
+        for prefix in prefixes:
+            if first_sentence.lower().startswith(prefix):
+                first_sentence = first_sentence[len(prefix):].strip()
+        
+        # Capitalize and truncate
+        first_sentence = first_sentence.capitalize()
+        
+        if len(first_sentence) <= max_length:
+            return first_sentence
+        
+        # Truncate at last complete word
+        truncated = first_sentence[:max_length]
+        last_space = truncated.rfind(' ')
+        if last_space > max_length * 0.6:
+            return truncated[:last_space] + "..."
+        return truncated + "..."
+    
+    # Ultimate fallback
+    return "Requirements Session"
+
+# Update the list_sessions endpoint to use improved title generation
 @app.get("/sessions/")
 def list_sessions():
-    """List all active sessions"""
+    """List all active sessions with stored titles"""
     db_path = get_db_path()
     conn = sqlite3.connect(db_path)
     c = conn.cursor()
     
-    c.execute("""
-        SELECT session_id, project_context, domain, created_at, last_active
-        FROM sessions
-        ORDER BY last_active DESC
-    """)
+    try:
+        # Try getting sessions with session_title
+        c.execute("""
+            SELECT session_id, project_context, domain, session_title, created_at, last_active
+            FROM sessions
+            ORDER BY last_active DESC
+        """)
+    except sqlite3.OperationalError:
+        # Fallback if session_title doesn't exist yet
+        c.execute("""
+            SELECT session_id, project_context, domain, created_at, last_active
+            FROM sessions
+            ORDER BY last_active DESC
+        """)
     
     rows = c.fetchall()
+    
+    # Return sessions with stored titles
+    sessions_with_titles = []
+    for row in rows:
+        session_id = row[0]
+        project_context = row[1] or ""
+        domain = row[2] or ""
+        
+        # Handle both cases (with and without session_title column)
+        if len(row) == 6:  # With session_title
+            session_title = row[3] if row[3] else "New Session"
+            created_at = row[4]
+            last_active = row[5]
+        else:  # Without session_title
+            session_title = "New Session"
+            created_at = row[3]
+            last_active = row[4]
+        
+        sessions_with_titles.append({
+            "session_id": session_id,
+            "session_title": session_title,
+            "project_context": project_context,
+            "domain": domain,
+            "created_at": created_at,
+            "last_active": last_active
+        })
+    
     conn.close()
     
     return {
-        "sessions": [{
-            "session_id": row[0],
-            "project_context": row[1],
-            "domain": row[2],
-            "created_at": row[3],
-            "last_active": row[4]
-        } for row in rows]
+        "sessions": sessions_with_titles
     }
 
 

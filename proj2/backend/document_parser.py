@@ -8,6 +8,27 @@ from typing import Optional, Tuple
 from fastapi import UploadFile, HTTPException
 
 
+def parse_document(content: str) -> dict:
+    """
+    Parse and prepare a document for requirement analysis.
+    
+    Args:
+        content: Raw document content as string
+        
+    Returns:
+        Dict containing parsed content and metadata
+    """
+    stats = get_text_stats(content)
+    return {
+        "text": content,
+        "metadata": {
+            "format": "text",
+            "version": "1.0",
+            "encoding": "utf-8",
+            "stats": stats
+        }
+    }
+
 def extract_text_from_file(file: UploadFile) -> Tuple[str, str]:
     """
     Extract text from uploaded file

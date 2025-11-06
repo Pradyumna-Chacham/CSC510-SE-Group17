@@ -7,8 +7,7 @@ import { formatDate } from '../../utils/formatters';
 function Sidebar() {
   const navigate = useNavigate();
   const location = useLocation();
-  const { currentSessionId, setCurrentSession } = useSessionStore();
-  const [sessions, setSessions] = useState([]);
+  const { currentSessionId, setCurrentSession, sessions, setSessions } = useSessionStore();
   const [loading, setLoading] = useState(true);
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [sidebarWidth, setSidebarWidth] = useState(256); // 256px = w-64
@@ -18,7 +17,11 @@ function Sidebar() {
   const maxWidth = 500;
 
   useEffect(() => {
-    loadSessions();
+    const initializeSessions = async () => {
+      await loadSessions();
+      // Don't automatically select a session
+    };
+    initializeSessions();
   }, []);
 
   useEffect(() => {
@@ -60,8 +63,8 @@ function Sidebar() {
     navigate('/');
   };
 
-  const handleSelectSession = (sessionId) => {
-    setCurrentSession(sessionId);
+  const handleSelectSession = (session) => {
+    setCurrentSession(session.session_id, session.session_title || '');
     navigate('/');
   };
 
@@ -154,7 +157,7 @@ function Sidebar() {
               {sessions.map((session) => (
                 <div
                   key={session.session_id}
-                  onClick={() => handleSelectSession(session.session_id)}
+                  onClick={() => handleSelectSession(session)}
                   className={`group relative px-3 py-2 rounded-lg cursor-pointer transition ${
                     currentSessionId === session.session_id
                       ? 'bg-gray-700'
@@ -164,10 +167,7 @@ function Sidebar() {
                   <div className="flex items-center justify-between">
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-medium truncate">
-                        {session.session_title || session.project_context || 'Untitled Session'}
-                      </p>
-                      <p className="text-xs text-gray-500 mt-0.5">
-                        {formatDate(session.last_active)}
+                        {session.session_title || session.project_context || `Session ${session.session_id.slice(0, 8)}`}
                       </p>
                     </div>
                     <button

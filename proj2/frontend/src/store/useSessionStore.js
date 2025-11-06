@@ -1,18 +1,41 @@
 import { create } from 'zustand';
 
-const useSessionStore = create((set) => ({
+const useSessionStore = create((set, get) => ({
   currentSessionId: null,
+  sessionTitle: '',
+  sessions: [],
   projectContext: '',
   domain: '',
   useCases: [],
   
-  setCurrentSession: (sessionId) => set({ currentSessionId: sessionId }),
+  setCurrentSession: (sessionId, title = '') => {
+    if (sessionId) {
+      // Find existing session
+      const session = get().sessions.find(s => s.session_id === sessionId);
+      // Use title hierarchy: provided title > existing session title > project context > ID-based title
+      const finalTitle = title || 
+                        session?.session_title || 
+                        session?.project_context || 
+                        `Session ${sessionId.slice(0, 8)}`;
+      set({ 
+        currentSessionId: sessionId,
+        sessionTitle: finalTitle
+      });
+    } else {
+      set({
+        currentSessionId: null,
+        sessionTitle: ''
+      });
+    }
+  },
+  setSessions: (sessions) => set({ sessions }),
   setProjectContext: (context) => set({ projectContext: context }),
   setDomain: (domain) => set({ domain: domain }),
   setUseCases: (useCases) => set({ useCases: useCases }),
   
   clearSession: () => set({
     currentSessionId: null,
+    sessionTitle: '',
     projectContext: '',
     domain: '',
     useCases: [],

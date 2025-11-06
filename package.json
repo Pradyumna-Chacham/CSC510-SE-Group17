@@ -1,0 +1,19 @@
+{
+  "name": "csc510-se-group17",
+  "private": true,
+  "workspaces": [
+    "proj2/frontend"
+  ],
+  "scripts": {
+    "frontend": "cd proj2/frontend && npm run dev",
+    "frontend:build": "cd proj2/frontend && npm run build",
+    "frontend:test": "cd proj2/frontend && npm test",
+    "backend": "cd proj2/backend && .\\env.bat run",
+    "backend:env:create": "cd proj2/backend && .\\env.bat create",
+    "backend:env:activate": "cd proj2/backend && .\\env.bat activate",
+    "backend:env:install": "cd proj2/backend && .\\env.bat install",
+    "backend:test": "cd proj2/backend && .\\env.bat test",
+    "test": "npm run frontend:test && npm run backend:test",
+    "install:all": "npm install && npm run backend:env:create"
+  }
+}

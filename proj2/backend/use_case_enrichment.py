@@ -8,6 +8,21 @@ import re
 from typing import Dict, List
 
 
+async def enrich_use_cases(use_cases: list) -> list:
+    """
+    Enrich multiple use cases with additional context.
+    
+    Args:
+        use_cases: List of use cases to enrich
+        
+    Returns:
+        List of enriched use cases
+    """
+    enriched = []
+    for uc in use_cases:
+        enriched.append(enrich_use_case(uc, ""))
+    return enriched
+
 def enrich_use_case(use_case: dict, original_text: str) -> dict:
     """
     ENHANCED enrichment - ensures high quality scores
@@ -184,6 +199,7 @@ def extract_optional_features(text: str, title: str) -> List[str]:
     
     # Keywords that indicate optional features
     optional_patterns = [
+        r'users? can (?:also\s+)?([^.]+)',  # Match "User can" or "Users can" with optional "also"
         r'(?:can also|optionally|may also)\s+([^.]+)',
         r'able to\s+([^.]+)',
         r'option to\s+([^.]+)',
@@ -200,17 +216,24 @@ def extract_optional_features(text: str, title: str) -> List[str]:
                 feature = feature[0].upper() + feature[1:]
                 if not feature.endswith('.'):
                     feature = feature
-                optional_features.append(f"User can {feature}")
+                # Don't duplicate "User can" if already present
+                if feature.lower().startswith('can '):
+                    optional_features.append(f"User {feature}")
+                else:
+                    optional_features.append(f"User can {feature}")
     
-    # Look for filtering, sorting mentions
-    if 'filter' in text_lower:
-        optional_features.append("User can apply filters to refine results")
-    if 'sort' in text_lower:
-        optional_features.append("User can sort results by different criteria")
-    if 'export' in text_lower:
-        optional_features.append("User can export data in various formats")
-    if 'save' in text_lower and 'draft' in text_lower:
-        optional_features.append("User can save work as draft and continue later")
+    # Look for specific keywords
+    keyword_features = {
+        'filter': "User can apply filters to refine results",
+        'sort': "User can sort results by different criteria",
+        'export': "User can export data in various formats",
+        'customize': "User can customize display settings",
+        'save': "User can save searches for later use"
+    }
+    
+    for keyword, feature in keyword_features.items():
+        if keyword in text_lower and feature not in optional_features:
+            optional_features.append(feature)
     
     # Remove duplicates
     seen = set()
@@ -230,30 +253,44 @@ def extract_error_cases(text: str, title: str) -> List[str]:
     
     # Keywords that indicate error handling
     error_patterns = [
-        (r'if\s+([^.]+?)\s+(?:fails?|errors?)', 'If {}: System handles error appropriately'),
+        (r'if\s+([^,]+?)\s+fails,\s+([^.]+)', 'If {}: {}'),  # For "If X fails, do Y" pattern
         (r'when\s+([^.]+?)\s+(?:unavailable|not available)', 'If {} is unavailable: System displays message and suggests alternatives'),
         (r'if\s+no\s+([^.]+)', 'If no {}: System notifies user and provides guidance'),
         (r'unable to\s+([^.]+)', 'If unable to {}: System logs issue and notifies administrator'),
         (r'cannot\s+([^.]+)', 'If cannot {}: System provides fallback option'),
         (r'timeout', 'If timeout occurs: System retries operation and notifies user'),
         (r'invalid\s+([^.]+)', 'If invalid {}: System displays validation error with specific guidance'),
+        (r'(?:if|when)\s+(?:the\s+)?([^,]+?)(?:\s+fails?|\s+errors?|\s+is\s+unavailable)', 'If {}: System handles the failure appropriately'),
     ]
     
     text_lower = text.lower()
     
+    # Process each error pattern
     for pattern, template in error_patterns:
-        if isinstance(pattern, str) and pattern in text_lower:
-            # Simple keyword match
-            error_cases.append(template)
-        else:
-            # Regex match
-            matches = re.findall(pattern, text_lower)
-            for match in matches:
-                error_case = template.format(match.strip())
-                if len(error_case) < 150:
-                    error_cases.append(error_case)
+        matches = re.finditer(pattern, text, re.IGNORECASE)  # Changed to finditer and removed .lower()
+        for match in matches:
+            groups = match.groups()
+            if len(groups) == 1:
+                error_case = template.format(groups[0].strip())
+            elif len(groups) == 2:
+                error_case = template.format(groups[0].strip(), groups[1].strip())
+            if len(error_case) < 150:  # Reasonable length limit
+                error_cases.append(error_case)
     
-    # Add common error scenarios if none found
+    # Add specific error cases based on keywords if none found
+    if not error_cases:
+        keyword_errors = {
+            'fail': 'If operation fails: System displays error message and logs the failure',
+            'error': 'If error occurs: System shows user-friendly message and notifies support',
+            'unavailable': 'If service is unavailable: System retries and provides status updates',
+            'invalid': 'If invalid input: System highlights errors and guides correction'
+        }
+        
+        for keyword, error in keyword_errors.items():
+            if keyword in text.lower() and error not in error_cases:
+                error_cases.append(error)
+    
+    # Add common error scenarios if still none found
     if not error_cases:
         actor = title.split()[0] if title else "User"
         error_cases = [

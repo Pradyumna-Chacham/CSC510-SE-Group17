@@ -140,10 +140,14 @@ function Extraction() {
                 
                 <div className="space-y-4">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                    <label 
+                      htmlFor="projectContext" 
+                      className="block text-sm font-medium text-gray-700 mb-2"
+                    >
                       Project Context
                     </label>
                     <input
+                      id="projectContext"
                       type="text"
                       value={projectContext}
                       onChange={(e) => setProjectContext(e.target.value)}
@@ -153,10 +157,14 @@ function Extraction() {
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                    <label 
+                      htmlFor="domain" 
+                      className="block text-sm font-medium text-gray-700 mb-2"
+                    >
                       Domain
                     </label>
                     <input
+                      id="domain"
                       type="text"
                       value={domain}
                       onChange={(e) => setDomain(e.target.value)}
@@ -202,10 +210,14 @@ function Extraction() {
               {/* Tab Content */}
               {activeTab === 'text' ? (
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label 
+                    htmlFor="requirementsText" 
+                    className="block text-sm font-medium text-gray-700 mb-2"
+                  >
                     Requirements Text
                   </label>
                   <textarea
+                    id="requirementsText"
                     rows={15}
                     value={rawText}
                     onChange={(e) => setRawText(e.target.value)}

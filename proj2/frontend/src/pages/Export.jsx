@@ -27,12 +27,7 @@ function Export() {
         const response = await api.exportMarkdown(currentSessionId);
         downloadFile(response.data, `use_cases_${currentSessionId}.md`);
         toast.success('Markdown exported successfully!');
-      } else if (format === 'plantuml') {
-        const response = await api.exportPlantUML(currentSessionId);
-        const blob = new Blob([response.data.plantuml], { type: 'text/plain' });
-        downloadFile(blob, `use_cases_${currentSessionId}.puml`);
-        toast.success('PlantUML exported successfully!');
-      }
+      } 
     } catch (error) {
       console.error('Export error:', error);
       toast.error('Export failed');
@@ -85,6 +80,7 @@ function Export() {
                   checked={format === 'docx'}
                   onChange={(e) => setFormat(e.target.value)}
                   className="mr-4"
+                  data-testid="docx-radio"
                 />
                 <div>
                   <p className="font-semibold text-gray-900">Microsoft Word (DOCX)</p>
@@ -103,6 +99,7 @@ function Export() {
                   checked={format === 'markdown'}
                   onChange={(e) => setFormat(e.target.value)}
                   className="mr-4"
+                  data-testid="markdown-radio"
                 />
                 <div>
                   <p className="font-semibold text-gray-900">Markdown (MD)</p>
@@ -112,23 +109,7 @@ function Export() {
                 </div>
               </label>
 
-              {/* PlantUML */}
-              <label className="flex items-center p-4 border rounded-lg cursor-pointer hover:bg-gray-50 transition">
-                <input
-                  type="radio"
-                  name="format"
-                  value="plantuml"
-                  checked={format === 'plantuml'}
-                  onChange={(e) => setFormat(e.target.value)}
-                  className="mr-4"
-                />
-                <div>
-                  <p className="font-semibold text-gray-900">PlantUML Diagram</p>
-                  <p className="text-sm text-gray-600">
-                    Visual use case diagram (paste at plantuml.com)
-                  </p>
-                </div>
-              </label>
+            
             </div>
 
             {/* Export Button */}

@@ -16,13 +16,25 @@ function UseCaseDetail() {
   }, [id]);
 
   const loadUseCase = async () => {
-    // Note: You'll need to add this endpoint to your backend
-    // For now, we'll simulate it
-    setLoading(false);
-    toast.info('Use case detail view - endpoint needed');
+    try {
+      // Note: You'll need to add this endpoint to your backend
+      // For now, we'll simulate it with a delay
+      await new Promise(resolve => setTimeout(resolve, 100));
+      toast.info('Use case detail view - endpoint needed');
+    } finally {
+      setLoading(false);
+    }
   };
 
-  if (loading) return <LoadingSpinner message="Loading use case..." />;
+  if (loading) {
+    return (
+      <div className="p-8">
+        <div className="max-w-4xl mx-auto">
+          <LoadingSpinner message="Loading use case..." />
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="p-8">

@@ -7,11 +7,73 @@ from typing import List, Dict, Optional
 def get_db_path():
     return os.path.join(os.path.dirname(__file__), "requirements.db")
 
+def migrate_db(reset: bool = False):
+    """
+    Handle database migrations. If reset=True, drop and recreate tables.
+    """
+    db_path = get_db_path()
+    
+    # Optionally reset database
+    if reset:
+        try:
+            os.remove(db_path)
+            print(f"Removed existing database: {db_path}")
+        except FileNotFoundError:
+            pass
+        init_db()  # Recreate tables
+        return
+    
+    conn = sqlite3.connect(db_path)
+    c = conn.cursor()
+    
+    try:
+        # Ensure sessions table exists
+        c.execute("""
+            CREATE TABLE IF NOT EXISTS sessions (
+                session_id TEXT PRIMARY KEY,
+                project_context TEXT,
+                domain TEXT,
+                user_preferences TEXT,
+                session_title TEXT,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                last_active TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        """)
+        
+        # Check if session_title column exists
+        try:
+            c.execute("SELECT session_title FROM sessions LIMIT 1")
+        except sqlite3.OperationalError:
+            print("Adding session_title column to sessions table...")
+            c.execute("ALTER TABLE sessions ADD COLUMN session_title TEXT")
+            
+        # Update existing NULL session_title values
+        c.execute("""
+            UPDATE sessions 
+            SET session_title = 'New Session' 
+            WHERE session_title IS NULL
+        """)
+        
+        conn.commit()
+        print("Database migration completed successfully")
+        
+    except Exception as e:
+        print(f"Migration error: {str(e)}")
+        conn.rollback()
+    finally:
+        conn.close()
+
 def init_db():
     """Initialize database with use_cases, sessions, and conversation_history tables"""
     db_path = get_db_path()
     conn = sqlite3.connect(db_path)
     c = conn.cursor()
+    
+    # Enable WAL mode for better concurrency and performance
+    c.execute("PRAGMA journal_mode=WAL")
+    c.execute("PRAGMA synchronous=NORMAL")
+    c.execute("PRAGMA cache_size=10000")
+    c.execute("PRAGMA temp_store=MEMORY")
     
     # Original use_cases table with session_id
     c.execute("""
@@ -36,6 +98,7 @@ def init_db():
             project_context TEXT,
             domain TEXT,
             user_preferences TEXT,
+            session_title TEXT,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             last_active TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
@@ -66,26 +129,33 @@ def init_db():
         )
     """)
     
+    # Create indexes for faster lookups
+    c.execute("CREATE INDEX IF NOT EXISTS idx_use_cases_session_id ON use_cases(session_id)")
+    c.execute("CREATE INDEX IF NOT EXISTS idx_use_cases_title ON use_cases(title)")
+    c.execute("CREATE INDEX IF NOT EXISTS idx_conversation_session_id ON conversation_history(session_id)")
+    c.execute("CREATE INDEX IF NOT EXISTS idx_conversation_timestamp ON conversation_history(timestamp)")
+    c.execute("CREATE INDEX IF NOT EXISTS idx_summaries_session_id ON session_summaries(session_id)")
+    
     conn.commit()
     conn.close()
 
-def create_session(session_id: str, project_context: str = "", domain: str = ""):
+def create_session(session_id: str, project_context: str = "", domain: str = "", session_title: str = "New Session"):
     """Create a new session or update existing one"""
     db_path = get_db_path()
     conn = sqlite3.connect(db_path)
     c = conn.cursor()
     
     c.execute("""
-        INSERT INTO sessions (session_id, project_context, domain, user_preferences)
-        VALUES (?, ?, ?, ?)
+        INSERT INTO sessions (session_id, project_context, domain, user_preferences, session_title)
+        VALUES (?, ?, ?, ?, ?)
         ON CONFLICT(session_id) DO UPDATE SET
             last_active = CURRENT_TIMESTAMP
-    """, (session_id, project_context, domain, json.dumps({})))
+    """, (session_id, project_context, domain, json.dumps({}), session_title))
     
     conn.commit()
     conn.close()
 
-def update_session_context(session_id: str, project_context: str = None, domain: str = None, preferences: dict = None):
+def update_session_context(session_id: str, project_context: str = None, domain: str = None, preferences: dict = None, session_title: str = None):
     """Update session context as conversation progresses"""
     db_path = get_db_path()
     conn = sqlite3.connect(db_path)
@@ -103,6 +173,9 @@ def update_session_context(session_id: str, project_context: str = None, domain:
     if preferences is not None:
         updates.append("user_preferences = ?")
         params.append(json.dumps(preferences))
+    if session_title is not None:
+        updates.append("session_title = ?")
+        params.append(session_title)
     
     if updates:
         updates.append("last_active = CURRENT_TIMESTAMP")
@@ -137,26 +210,27 @@ def get_conversation_history(session_id: str, limit: int = 10) -> List[Dict]:
     """Retrieve recent conversation history for a session"""
     db_path = get_db_path()
     conn = sqlite3.connect(db_path)
+    conn.row_factory = sqlite3.Row  # Enable row factory for named columns
     c = conn.cursor()
     
     c.execute("""
-        SELECT role, content, metadata, timestamp
+        SELECT id, role, content, metadata, timestamp
         FROM conversation_history
         WHERE session_id = ?
-        ORDER BY timestamp DESC
+        ORDER BY id ASC
         LIMIT ?
     """, (session_id, limit))
     
     rows = c.fetchall()
     conn.close()
     
-    # Return in chronological order (oldest first)
     return [{
-        "role": row[0],
-        "content": row[1],
-        "metadata": json.loads(row[2]) if row[2] else {},
-        "timestamp": row[3]
-    } for row in reversed(rows)]
+        "id": row["id"],
+        "role": row["role"],
+        "content": row["content"],
+        "metadata": json.loads(row["metadata"]) if row["metadata"] else {},
+        "timestamp": row["timestamp"]
+    } for row in rows]
 
 def get_session_context(session_id: str) -> Optional[Dict]:
     """Get accumulated context for a session"""
@@ -246,6 +320,14 @@ def update_use_case(use_case_id: int, updated_data: Dict) -> bool:
     conn = sqlite3.connect(db_path)
     c = conn.cursor()
     
+    # First check if the use case exists
+    c.execute("SELECT COUNT(*) FROM use_cases WHERE id = ?", (use_case_id,))
+    count = c.fetchone()[0]
+    
+    if count == 0:
+        conn.close()
+        return False
+    
     try:
         c.execute("""
             UPDATE use_cases
@@ -269,7 +351,7 @@ def update_use_case(use_case_id: int, updated_data: Dict) -> bool:
         ))
         conn.commit()
         conn.close()
-        return True
+        return c.rowcount > 0
     except Exception as e:
         conn.close()
         print(f"Error updating use case: {e}")
@@ -314,3 +396,46 @@ def get_latest_summary(session_id: str) -> Optional[Dict]:
             "created_at": row[2]
         }
     return None
+
+def clean_new_session_titles():
+    """Remove 'New Session' titles and update with better defaults"""
+    db_path = get_db_path()
+    conn = sqlite3.connect(db_path)
+    c = conn.cursor()
+    
+    try:
+        # First, get all sessions with "New Session" title
+        c.execute("""
+            SELECT session_id, project_context, domain
+            FROM sessions
+            WHERE session_title = 'New Session' OR session_title IS NULL
+        """)
+        sessions = c.fetchall()
+        
+        for session in sessions:
+            session_id, project_context, domain = session
+            # Use project context or domain as title if available
+            new_title = None
+            if project_context:
+                new_title = project_context
+            elif domain:
+                new_title = domain
+            else:
+                new_title = f"Session {session_id[:8]}"
+            
+            # Update the session title
+            c.execute("""
+                UPDATE sessions
+                SET session_title = ?
+                WHERE session_id = ?
+            """, (new_title, session_id))
+        
+        conn.commit()
+        print(f"Updated {len(sessions)} session titles")
+        return len(sessions)
+    except Exception as e:
+        print(f"Error cleaning session titles: {e}")
+        conn.rollback()
+        return 0
+    finally:
+        conn.close()

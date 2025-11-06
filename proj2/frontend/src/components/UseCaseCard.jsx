@@ -44,9 +44,11 @@ function UseCaseCard({ useCase, onDelete, onRefined }) {
 
   return (
     <>
-    <div className={`bg-white border rounded-lg p-6 shadow-sm hover:shadow-md transition ${
-      useCase._refined ? 'border-green-400 bg-green-50' : ''
-    }`}>
+    <div
+      data-testid="use-case-card"
+      className={`bg-white border rounded-lg p-6 shadow-sm hover:shadow-md transition ${
+        useCase._refined ? 'border-green-400 bg-green-50' : ''
+      }`}>
       {/* Header */}
       <div className="flex justify-between items-start mb-4">
         <div className="flex items-center gap-2 flex-1">

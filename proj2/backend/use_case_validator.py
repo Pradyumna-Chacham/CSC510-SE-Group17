@@ -5,6 +5,51 @@ Validates use case quality and completeness with safe type handling
 from typing import Tuple, List, Dict
 
 
+def validate_requirements(use_cases: list, validation_data: list = None) -> list:
+    """
+    Validate a list of use cases and return validation results with scores.
+    
+    Args:
+        use_cases: List of use case dictionaries
+        validation_data: Optional list of pre-computed validation results
+        
+    Returns:
+        List of validated use cases with added validation scores and details
+    """
+    if validation_data and len(validation_data) == len(use_cases):
+        return validation_data
+    
+    validator = UseCaseValidator()
+    validated_cases = []
+    
+    for use_case in use_cases:
+        is_valid, issues = validator.validate(use_case)
+        quality_score = validator.calculate_quality_score(use_case)
+        suggestions = validator.get_improvement_suggestions(use_case)
+        
+        score = UseCaseValidator.calculate_quality_score(use_case)
+        security_score = UseCaseValidator.calculate_security_score(use_case)
+        completeness = min(len(use_case.get("steps", [])) * 10, 100)
+        
+        # Calculate combined score
+        validation_score = (score + security_score + completeness) / 3
+        
+        validated_case = {
+            **use_case,
+            "validation_score": validation_score,
+            "validation_details": {
+                "completeness": completeness,
+                "clarity": score,
+                "testability": score if is_valid else score * 0.8,
+                "security_score": security_score
+            },
+            "issues": issues,
+            "suggestions": suggestions
+        }
+        validated_cases.append(validated_case)
+    
+    return validated_cases
+
 class UseCaseValidator:
     """Validate use case quality and structure"""
     
@@ -122,18 +167,20 @@ class UseCaseValidator:
         
         # Title (10 points)
         title = use_case.get("title", "")
-        if len(title.split()) >= 3:
+        words = title.split()
+        if len(words) >= 3:
             score += 5
-        action_verbs = [
-            'add', 'create', 'delete', 'update', 'search', 'view', 'manage',
-            'edit', 'remove', 'submit', 'process', 'validate', 'approve',
-            'reject', 'send', 'receive', 'upload', 'download', 'export',
-            'import', 'configure', 'register', 'login', 'logout', 'browse',
-            'filter', 'sort', 'select', 'purchase', 'pay', 'checkout', 'track',
-            'cancel', 'place', 'review', 'verify'
-        ]
-        if any(verb in title.lower() for verb in action_verbs):
-            score += 5
+            # Check for action verb
+            action_verbs = [
+                'add', 'create', 'delete', 'update', 'search', 'view', 'manage',
+                'edit', 'remove', 'submit', 'process', 'validate', 'approve',
+                'reject', 'send', 'receive', 'upload', 'download', 'export',
+                'import', 'configure', 'register', 'login', 'logout', 'browse',
+                'filter', 'sort', 'select', 'purchase', 'pay', 'checkout', 'track',
+                'cancel', 'place', 'review', 'verify'
+            ]
+            if any(verb in [w.lower() for w in words] for verb in action_verbs):
+                score += 5
         
         # Preconditions (15 points)
         preconditions = UseCaseValidator._safe_get_list(use_case, "preconditions")
@@ -174,6 +221,42 @@ class UseCaseValidator:
         
         return min(score, 100)
     
+    @staticmethod
+    def calculate_security_score(use_case: dict) -> int:
+        """Calculate security score based on security-related content in the use case"""
+        score = 60  # Base score
+        
+        # Check for security-related keywords in all text fields
+        security_keywords = [
+            'security', 'authentication', 'authorization', 'encrypt', 'validate',
+            'verify', 'permission', 'access control', 'secure', 'token', 'ssl',
+            'tls', 'https', 'pci', 'compliance', 'hash', 'salt', 'protection',
+            'backup', 'recovery', 'audit', 'log', 'monitor'
+        ]
+        
+        # Convert use case to string for keyword search
+        use_case_text = str(use_case).lower()
+        
+        # Add points for each security keyword found
+        for keyword in security_keywords:
+            if keyword in use_case_text:
+                score += 5
+        
+        # Check for specific security features in flows
+        flows = UseCaseValidator._safe_get_list(use_case, "main_flow") + \
+               UseCaseValidator._safe_get_list(use_case, "alternate_flows")
+               
+        security_patterns = [
+            "validat", "authent", "authoriz", "check", "verify"
+        ]
+        
+        for flow in flows:
+            if any(pattern in str(flow).lower() for pattern in security_patterns):
+                score += 5
+        
+        # Cap at 100
+        return min(score, 100)
+
     @staticmethod
     def get_improvement_suggestions(use_case: dict) -> List[str]:
         """Get specific suggestions for improving the use case"""

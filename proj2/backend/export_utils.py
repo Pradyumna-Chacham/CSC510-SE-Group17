@@ -127,6 +127,15 @@ def export_to_plantuml(use_cases: List[Dict]) -> str:
     plantuml += "left to right direction\n"
     plantuml += "skinparam packageStyle rectangle\n\n"
     
+    def clean_id(text):
+        """Create valid PlantUML identifier by removing/replacing special characters"""
+        return (text.replace(' ', '_')
+                   .replace('-', '_')
+                   .replace('/', '_')
+                   .replace('(', '')
+                   .replace(')', '')
+                   .replace('!', ''))
+    
     # Extract all unique stakeholders (actors)
     actors = set()
     for uc in use_cases:
@@ -137,15 +146,15 @@ def export_to_plantuml(use_cases: List[Dict]) -> str:
     plantuml += "' Actors\n"
     actor_map = {}
     for actor in sorted(actors):
-        # Create valid PlantUML identifier
-        actor_id = actor.replace(' ', '_').replace('-', '_')
+        # Create valid PlantUML identifier and display name
+        actor_id = clean_id(actor)
         actor_map[actor] = actor_id
         
         # Use different notation for system vs human actors
-        if 'system' in actor.lower() or 'database' in actor.lower() or 'api' in actor.lower():
-            plantuml += f"rectangle {actor_id} as \"{actor}\"\n"
+        if 'system' in actor.lower() or 'database' in actor.lower() or 'api' in actor.lower() or 'db' in actor.lower():
+            plantuml += f"rectangle {actor_id} as \"{actor_id}\"\n"
         else:
-            plantuml += f"actor {actor_id} as \"{actor}\"\n"
+            plantuml += f"actor {actor_id} as \"{actor_id}\"\n"
     
     plantuml += "\n"
     
@@ -153,12 +162,13 @@ def export_to_plantuml(use_cases: List[Dict]) -> str:
     plantuml += "' Use Cases\n"
     uc_map = {}
     for idx, uc in enumerate(use_cases):
-        uc_id = f"UC{idx + 1}"
+        uc_id = clean_id(f"UC{idx + 1}")
         uc_map[uc['title']] = uc_id
         
-        # Escape quotes in title
+        # Escape quotes and clean title for PlantUML
         title = uc['title'].replace('"', '\\"')
-        plantuml += f"usecase {uc_id} as \"{title}\"\n"
+        clean_title = clean_id(title)
+        plantuml += f"usecase {uc_id} as \"{clean_title}\"\n"
     
     plantuml += "\n"
     
@@ -293,6 +303,145 @@ def export_to_markdown(use_cases: List[Dict], session_context: Optional[Dict], s
     
     return file_path
 
+
+def export_to_html(use_cases: List[Dict]) -> str:
+    """
+    Convert use cases to HTML format
+    
+    Args:
+        use_cases: List of use cases to convert
+        
+    Returns:
+        HTML formatted string containing use case documentation
+    """
+    if not use_cases:
+        return "<!DOCTYPE html><html><body><h1>No Use Cases Available</h1></body></html>"
+        
+    html = ['<!DOCTYPE html><html><head><style>',
+            'body { font-family: Arial, sans-serif; margin: 2em; }',
+            'h1 { color: #333; }',
+            'h2 { color: #666; }',
+            'ul { margin-left: 2em; }',
+            '.use-case { border: 1px solid #ddd; padding: 1em; margin: 1em 0; border-radius: 4px; }',
+            '</style></head><body>',
+            '<h1>Use Cases Documentation</h1>']
+    
+    for uc in use_cases:
+        html.extend([
+            f'<div class="use-case">',
+            f'<h2>{uc.get("title", "Untitled")}</h2>',
+            '<h3>Actor</h3>',
+            f'<p>{uc.get("actor", "Not specified")}</p>',
+            '<h3>Goal</h3>',
+            f'<p>{uc.get("goal", "Not specified")}</p>',
+            '<h3>Preconditions</h3>',
+            '<ul>'])
+        
+        for precond in uc.get("preconditions", []):
+            html.append(f'<li>{precond}</li>')
+        
+        html.extend(['</ul>', '<h3>Main Flow</h3>', '<ol>'])
+        for step in uc.get("main_flow", []):
+            html.append(f'<li>{step}</li>')
+        
+        html.extend(['</ol>', '<h3>Alternative Flows</h3>', '<ul>'])
+        for flow in uc.get("alternate_flows", []):
+            html.append(f'<li>{flow}</li>')
+        
+        html.extend(['</ul>', '<h3>Outcomes</h3>', '<ul>'])
+        for outcome in uc.get("outcomes", []):
+            html.append(f'<li>{outcome}</li>')
+        
+        html.append('</ul></div>')
+    
+    html.append('</body></html>')
+    return '\n'.join(html)
+
+def export_to_format(use_cases: List[Dict], format_type: str) -> Dict:
+    """
+    Export use cases to specified format.
+    
+    Args:
+        use_cases: List of use cases
+        format_type: Target format (json, docx, plantuml, markdown, jira, html)
+        
+    Returns:
+        Dict with export results and metadata
+    """
+    if format_type.lower() == "json":
+        result = export_to_json(use_cases, None)
+        return {
+            "status": "success",
+            "formats": ["JSON"],
+            "data": result
+        }
+    elif format_type.lower() == "docx":
+        path = export_to_docx(use_cases, None, "default")
+        return {
+            "status": "success",
+            "formats": ["DOCX"],
+            "export_path": str(path)
+        }
+    elif format_type.lower() == "plantuml":
+        result = export_to_plantuml(use_cases)
+        return {
+            "status": "success",
+            "formats": ["PlantUML"],
+            "data": result
+        }
+    elif format_type.lower() == "markdown":
+        path = export_to_markdown(use_cases, None, "default")
+        return {
+            "status": "success",
+            "formats": ["Markdown"],
+            "export_path": str(path)
+        }
+    elif format_type.lower() == "jira":
+        return {
+            "status": "success",
+            "formats": ["JIRA"],
+            "data": {
+                "issues": [_convert_to_jira_issue(uc) for uc in use_cases]
+            }
+        }
+    elif format_type.lower() == "html":
+        return {
+            "status": "success",
+            "formats": ["HTML"],
+            "data": export_to_html(use_cases)
+        }
+    else:
+        raise ValueError(f"Unsupported format: {format_type}")
+
+def _convert_to_jira_issue(use_case: Dict) -> Dict:
+    """Convert use case to JIRA issue format"""
+    return {
+        "summary": use_case.get("title", "Untitled Use Case"),
+        "description": _build_jira_description(use_case),
+        "issuetype": "Story",
+        "labels": ["use-case"]
+    }
+
+def _build_jira_description(use_case: Dict) -> str:
+    """Build JIRA description from use case"""
+    parts = []
+    
+    if "preconditions" in use_case:
+        parts.append("h3. Preconditions")
+        for pre in use_case["preconditions"]:
+            parts.append(f"* {pre}")
+    
+    if "main_flow" in use_case:
+        parts.append("\nh3. Main Flow")
+        for step in use_case["main_flow"]:
+            parts.append(f"# {step}")
+    
+    if "requirements" in use_case:
+        parts.append("\nh3. Requirements")
+        for req in use_case["requirements"]:
+            parts.append(f"* {req}")
+    
+    return "\n".join(parts)
 
 def export_to_json(use_cases: List[Dict], session_context: Optional[Dict]) -> Dict:
     """

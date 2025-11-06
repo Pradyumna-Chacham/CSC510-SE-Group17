@@ -5,34 +5,11 @@ import { api } from '../../api/client';
 
 function SessionHeader() {
   const location = useLocation();
-  const { currentSessionId } = useSessionStore();
-  const [sessionTitle, setSessionTitle] = useState('New Chat Session');
-
-  useEffect(() => {
-    const fetchSessionTitle = async () => {
-      if (!currentSessionId) {
-        setSessionTitle('New Chat Session');
-        return;
-      }
-
-      try {
-        const response = await api.getSessions();
-        const sessions = response.data.sessions || [];
-        const currentSession = sessions.find(s => s.session_id === currentSessionId);
-        
-        if (currentSession && currentSession.session_title) {
-          setSessionTitle(currentSession.session_title);
-        } else {
-          setSessionTitle(`Session: ${currentSessionId.substring(0, 8)}...`);
-        }
-      } catch (error) {
-        console.log('Could not load session title');
-        setSessionTitle(`Session: ${currentSessionId.substring(0, 8)}...`);
-      }
-    };
-
-    fetchSessionTitle();
-  }, [currentSessionId]);
+  const { currentSessionId, sessionTitle, sessions } = useSessionStore();
+  
+  const displayTitle = currentSessionId 
+    ? (sessionTitle || 'New Session')
+    : 'New Chat Session';
 
   const navItems = [
     { 
@@ -71,7 +48,7 @@ function SessionHeader() {
         <div className="flex items-center gap-3">
           <span className="text-2xl"></span>
           <h2 className="text-lg font-semibold text-gray-900">
-            {sessionTitle}
+            {displayTitle}
           </h2>
         </div>
         {/* Session Controls */}
