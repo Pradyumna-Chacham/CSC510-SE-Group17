@@ -27,7 +27,6 @@ from export_utils import export_to_docx, export_to_plantuml, export_to_markdown
 from document_parser import extract_text_from_file, validate_file_size, get_text_stats
 from chunking_strategy import DocumentChunker
 import traceback
-from groq import Groq
 app = FastAPI()
 
 # --- CORS ---

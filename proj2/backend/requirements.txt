@@ -3,8 +3,13 @@ fastapi==0.104.1
 uvicorn==0.24.0
 python-multipart==0.0.6
 
-# PyTorch with CUDA 11.8 support (install separately, see INSTALL.md)
-# torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu118
+#PyTorch & GPU (install separately)
+#Install GPU-enabled PyTorch and CUDA 12.1:
+#pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu121
+#(Or) using Conda:
+#conda install pytorch torchvision torchaudio pytorch-cuda=12.1 -c pytorch -c nvidia
+#bitsandbytes for 4-bit / 8-bit quantization (install after GPU PyTorch):
+#pip install bitsandbytes
 
 # LLM and NLP
 transformers>=4.38.0
