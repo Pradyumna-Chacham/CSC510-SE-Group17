@@ -1,0 +1,167 @@
+import pytest
+from fastapi import UploadFile, HTTPException
+from io import BytesIO
+import os
+from document_parser import (
+    parse_document,
+    extract_text_from_file,
+    extract_from_text,
+    validate_file_size,
+    get_text_stats,
+    categorize_text_size
+)
+
+class MockFile:
+    def __init__(self, filename: str, content: bytes):
+        self.filename = filename
+        self.file = BytesIO(content)
+
+    def __call__(self):
+        return self
+
+def test_parse_document():
+    # Test with simple text
+    text = "Sample document text"
+    result = parse_document(text)
+    
+    assert isinstance(result, dict)
+    assert "text" in result
+    assert "metadata" in result
+    assert result["text"] == text
+    assert result["metadata"]["format"] == "text"
+    assert result["metadata"]["version"] == "1.0"
+    assert result["metadata"]["encoding"] == "utf-8"
+    assert "stats" in result["metadata"]
+
+def test_extract_from_text():
+    # Test UTF-8 text
+    content = "Hello, world!".encode('utf-8')
+    result = extract_from_text(content)
+    assert result == "Hello, world!"
+
+    # Test latin-1 text
+    content = "Hello, world!".encode('latin-1')
+    result = extract_from_text(content)
+    assert result == "Hello, world!"
+
+    # Test invalid encoding
+    content = bytes([0xFF, 0xFE, 0xFD])  # Invalid UTF-8 and latin-1
+    with pytest.raises(HTTPException) as exc:
+        result = extract_from_text(content)
+    assert "Error decoding text file" in str(exc.value.detail)
+    assert "Error decoding text file" in str(exc.value.detail)
+
+def test_validate_file_size():
+    # Test file within size limit
+    content = b"Small file content"
+    file = MockFile("test.txt", content)
+    validate_file_size(file(), max_size_mb=1)  # Should not raise exception
+    
+    # Test file exceeding size limit
+    large_content = b"x" * (11 * 1024 * 1024)  # 11MB
+    file = MockFile("large.txt", large_content)
+    with pytest.raises(HTTPException) as exc:
+        validate_file_size(file(), max_size_mb=10)
+    assert "File too large" in str(exc.value.detail)
+
+def test_get_text_stats():
+    text = "Line 1\nLine 2\nLine 3"
+    stats = get_text_stats(text)
+    
+    assert isinstance(stats, dict)
+    assert "characters" in stats
+    assert "words" in stats
+    assert "lines" in stats
+    assert "estimated_tokens" in stats
+    assert "size_category" in stats
+    
+    assert stats["characters"] == len(text)
+    assert stats["words"] == 6  # "Line", "1", "Line", "2", "Line", "3"
+    assert stats["lines"] == 3
+    assert stats["estimated_tokens"] == 6 * 1.3  # words * 1.3
+
+def test_categorize_text_size():
+    assert categorize_text_size(100) == "tiny"
+    assert categorize_text_size(1000) == "small"
+    assert categorize_text_size(5000) == "medium"
+    assert categorize_text_size(10000) == "large"
+    assert categorize_text_size(25000) == "very_large"
+
+def test_extract_text_from_file():
+    # Test txt file
+    txt_content = "Hello, world!".encode('utf-8')
+    txt_file = MockFile("test.txt", txt_content)
+    txt_text, txt_ext = extract_text_from_file(txt_file())
+    assert txt_text == "Hello, world!"
+    assert txt_ext == ".txt"
+    
+    # Test markdown file
+    md_content = "# Title\nContent".encode('utf-8')
+    md_file = MockFile("test.md", md_content)
+    md_text, md_ext = extract_text_from_file(md_file())
+    assert md_text == "# Title\nContent"
+    assert md_ext == ".md"
+    
+    # Test unsupported file type
+    invalid_file = MockFile("test.xyz", b"content")
+    with pytest.raises(HTTPException) as exc:
+        extract_text_from_file(invalid_file())
+    assert "Unsupported file type" in str(exc.value.detail)
+    
+    # Test file read error
+    broken_file = MockFile("test.txt", None)
+    broken_file.file = None  # Simulate broken file
+    with pytest.raises(HTTPException) as exc:
+        extract_text_from_file(broken_file())
+    assert "Error reading file" in str(exc.value.detail)
+
+# Optional: Test PDF extraction if PyPDF2 is installed
+def test_extract_from_pdf():
+    try:
+        from document_parser import extract_from_pdf
+        import PyPDF2
+        
+        # Create a simple PDF in memory for testing
+        from reportlab.pdfgen import canvas
+        pdf_buffer = BytesIO()
+        c = canvas.Canvas(pdf_buffer)
+        c.drawString(100, 750, "Test PDF content")
+        c.save()
+        
+        # Test PDF extraction
+        pdf_content = pdf_buffer.getvalue()
+        result = extract_from_pdf(pdf_content)
+        assert "Test PDF content" in result
+        
+        # Test invalid PDF
+        with pytest.raises(HTTPException) as exc:
+            extract_from_pdf(b"invalid pdf content")
+        assert "Error parsing PDF" in str(exc.value.detail)
+        
+    except ImportError:
+        pytest.skip("PyPDF2 not installed")
+
+# Optional: Test DOCX extraction if python-docx is installed
+def test_extract_from_docx():
+    try:
+        from document_parser import extract_from_docx
+        from docx import Document
+        
+        # Create a simple DOCX in memory
+        doc = Document()
+        doc.add_paragraph("Test DOCX content")
+        docx_buffer = BytesIO()
+        doc.save(docx_buffer)
+        
+        # Test DOCX extraction
+        docx_content = docx_buffer.getvalue()
+        result = extract_from_docx(docx_content)
+        assert "Test DOCX content" in result
+        
+        # Test invalid DOCX
+        with pytest.raises(HTTPException) as exc:
+            extract_from_docx(b"invalid docx content")
+        assert "Error parsing DOCX" in str(exc.value.detail)
+        
+    except ImportError:
+        pytest.skip("python-docx not installed")
