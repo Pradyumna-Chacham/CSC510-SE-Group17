@@ -7,59 +7,84 @@ on:
     branches: [ main, MAIN ]
 
 jobs:
-  frontend-tests:
-    runs-on: ubuntu-latest
-    steps:
-    - uses: actions/checkout@v4  # Updated to v4
-    
-    - name: Set up Node.js
-      uses: actions/setup-node@v4 # Updated to v4
-      with:
-        node-version: '18'
-        
-    - name: Install frontend dependencies
-      working-directory: ./proj2/frontend  # FIXED PATH
-      run: npm install
-      
-    - name: Run frontend tests
-      working-directory: ./proj2/frontend  # FIXED PATH
-      # ensuring lcov report is generated for easier codecov upload
-      run: npm test -- --coverage --reporter=lcov 
-      
-    - name: Upload frontend coverage
-      uses: codecov/codecov-action@v4 # Updated to v4
-      with:
-        # Removed explicit 'files' path to let Codecov auto-discover the lcov.info
-        # If auto-discovery fails, use: ./proj2/frontend/coverage/lcov.info
-        working-directory: ./proj2/frontend
-        flags: frontend
-        name: frontend-coverage
-        token: ${{ secrets.CODECOV_TOKEN }} # v4 often requires token even for public repos
-
   backend-tests:
+    name: Backend Tests (Python)
     runs-on: ubuntu-latest
-    steps:
-    - uses: actions/checkout@v4
     
-    - name: Set up Python
-      uses: actions/setup-python@v5 # Updated to v5
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v3
+    
+    - name: Set up Python 3.11
+      uses: actions/setup-python@v4
       with:
-        python-version: '3.10' # 3.x can sometimes be flaky; specific is better
-        
-    - name: Install backend dependencies
-      working-directory: ./proj2/backend # FIXED PATH
+        python-version: '3.11'
+        cache: 'pip'
+    
+    - name: Install dependencies
+      working-directory: ./backend
       run: |
+        python -m pip install --upgrade pip
         pip install -r requirements.txt
         pip install pytest pytest-cov
-        
-    - name: Run backend tests
-      working-directory: ./proj2/backend # FIXED PATH
-      run: pytest --cov=. --cov-report=xml
-      
-    - name: Upload backend coverage
-      uses: codecov/codecov-action@v4
+    
+    - name: Run backend tests with coverage
+      working-directory: ./backend
+      run: |
+        pytest tests/ --cov=. --cov-report=xml --cov-report=term -v
+    
+    - name: Upload backend coverage to Codecov
+      uses: codecov/codecov-action@v3
       with:
-        file: ./proj2/backend/coverage.xml # FIXED PATH
+        files: ./backend/coverage.xml
         flags: backend
         name: backend-coverage
-        token: ${{ secrets.CODECOV_TOKEN }}
+        fail_ci_if_error: false
+
+  frontend-tests:
+    name: Frontend Tests (React + Vitest)
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v3
+    
+    - name: Set up Node.js
+      uses: actions/setup-node@v3
+      with:
+        node-version: '18'
+        cache: 'npm'
+        cache-dependency-path: ./frontend/package-lock.json
+    
+    - name: Install dependencies
+      working-directory: ./frontend
+      run: npm ci
+    
+    - name: Run frontend tests with coverage
+      working-directory: ./frontend
+      run: npm run test:coverage
+    
+    - name: Upload frontend coverage to Codecov
+      uses: codecov/codecov-action@v3
+      with:
+        files: ./frontend/coverage/coverage-final.json
+        flags: frontend
+        name: frontend-coverage
+        fail_ci_if_error: false
+
+  all-tests:
+    name: All Tests Status
+    runs-on: ubuntu-latest
+    needs: [backend-tests, frontend-tests]
+    if: always()
+    
+    steps:
+    - name: Check test results
+      run: |
+        if [ "${{ needs.backend-tests.result }}" == "success" ] && [ "${{ needs.frontend-tests.result }}" == "success" ]; then
+          echo "All tests passed!"
+          exit 0
+        else
+          echo "Some tests failed!"
+          exit 1
+        fi
