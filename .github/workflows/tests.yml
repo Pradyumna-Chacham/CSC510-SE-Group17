@@ -60,17 +60,10 @@ jobs:
       uses: actions/setup-node@v3
       with:
         node-version: '18'
-        cache: 'npm'
-        cache-dependency-path: ./proj2/frontend/package-lock.json
     
     - name: Install dependencies
       working-directory: ./proj2/frontend
-      run: |
-        if [ -f package-lock.json ]; then
-          npm ci
-        else
-          npm install
-        fi
+      run: npm install
     
     - name: Run frontend tests with coverage
       working-directory: ./proj2/frontend
