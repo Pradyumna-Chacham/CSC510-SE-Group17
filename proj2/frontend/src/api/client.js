@@ -1,3 +1,13 @@
+// -----------------------------------------------------------------------------
+// File: client.js
+// Description: API client configuration for ReqEngine frontend - handles
+//              HTTP requests to the FastAPI backend with axios configuration.
+// Author: Pradyumna Chacham
+// Date: November 2025
+// Copyright (c) 2025 Pradyumna Chacham. All rights reserved.
+// License: MIT License - see LICENSE file in the root directory.
+// -----------------------------------------------------------------------------
+
 import axios from 'axios';
 
 const API_BASE_URL = 'http://localhost:8000';

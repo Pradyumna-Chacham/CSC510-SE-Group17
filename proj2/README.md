@@ -507,6 +507,26 @@ lsof -ti:8000 | xargs kill -9
 
 ---
 
+## 🆘 Support
+
+### 📧 Contact Us
+
+For questions, support, or collaboration inquiries, reach out to us:
+
+**Email**: [reqenginequery@gmail.com](mailto:reqenginequery@gmail.com)
+
+### 🔗 Additional Support Resources
+
+- **🐛 Bug Reports**: [GitHub Issues](https://github.com/Pradyumna-Chacham/CSC510-SE-Group17/issues)
+- **💡 Feature Requests**: [GitHub Issues](https://github.com/Pradyumna-Chacham/CSC510-SE-Group17/issues)
+- **� Documentation**: [Project Documentation](docs/)
+- **🤝 Contributing**: [Contributing Guidelines](docs/CONTRIBUTING.md)
+- **❓ Troubleshooting**: See the Troubleshooting section above
+
+
+
+---
+
 ## �📖 Citation
 
 If you use ReqEngine in your research or project, please cite it as:
@@ -516,11 +536,13 @@ If you use ReqEngine in your research or project, please cite it as:
   title={ReqEngine: Intelligent Requirements Engineering Tool},
   author={ReqEngine Development Team},
   year={2025},
-  url={https://github.com/Pradyumna-Chacham/CSC510-SE-Group17},
+  url={https://github.com/Pradyumna-Chacham/CSC510-SE-Group17/tree/main/proj2},
   note={AI-powered tool for transforming unstructured requirements into structured use cases}
 }
 ```
+## Funding
 
+This project did not receive any specific grant or funding from public, commercial, or not-for-profit agencies.
 ---
 
 ## 📄 License

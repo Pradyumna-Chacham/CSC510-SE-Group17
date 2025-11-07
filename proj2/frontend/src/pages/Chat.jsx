@@ -1,3 +1,13 @@
+// -----------------------------------------------------------------------------
+// File: Chat.jsx
+// Description: Chat interface page for ReqEngine - provides conversational
+//              interaction with AI for requirements analysis and use case queries.
+// Author: Pradyumna Chacham
+// Date: November 2025
+// Copyright (c) 2025 Pradyumna Chacham. All rights reserved.
+// License: MIT License - see LICENSE file in the root directory.
+// -----------------------------------------------------------------------------
+
 import React, { useState, useRef, useEffect } from 'react';
 import { api } from '../api/client';
 import { toast } from 'react-toastify';

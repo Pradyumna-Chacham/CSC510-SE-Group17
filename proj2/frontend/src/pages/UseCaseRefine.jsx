@@ -1,3 +1,13 @@
+// -----------------------------------------------------------------------------
+// File: UseCaseRefine.jsx
+// Description: Use case refinement page for ReqEngine - provides advanced
+//              editing and enhancement capabilities for individual use cases.
+// Author: Pradyumna Chacham
+// Date: November 2025
+// Copyright (c) 2025 Pradyumna Chacham. All rights reserved.
+// License: MIT License - see LICENSE file in the root directory.
+// -----------------------------------------------------------------------------
+
 import React, { useState, useEffect } from 'react';
 import { useParams, useLocation, useNavigate } from 'react-router-dom';
 import { api } from '../api/client';

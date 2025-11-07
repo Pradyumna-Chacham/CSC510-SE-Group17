@@ -1,3 +1,13 @@
+// -----------------------------------------------------------------------------
+// File: FileUploader.jsx
+// Description: File upload component for ReqEngine - handles drag-and-drop
+//              file uploads with support for PDF, DOCX, and text files.
+// Author: Pradyumna Chacham
+// Date: November 2025
+// Copyright (c) 2025 Pradyumna Chacham. All rights reserved.
+// License: MIT License - see LICENSE file in the root directory.
+// -----------------------------------------------------------------------------
+
 import React, { useCallback } from 'react';
 import { useDropzone } from 'react-dropzone';
 

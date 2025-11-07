@@ -1,3 +1,13 @@
+// -----------------------------------------------------------------------------
+// File: Export.jsx
+// Description: Export page component for ReqEngine - handles exporting use cases
+//              to various formats including DOCX, Markdown, and PDF.
+// Author: Pradyumna Chacham
+// Date: November 2025
+// Copyright (c) 2025 Pradyumna Chacham. All rights reserved.
+// License: MIT License - see LICENSE file in the root directory.
+// -----------------------------------------------------------------------------
+
 import React, { useState } from 'react';
 import { api } from '../api/client';
 import { toast } from 'react-toastify';

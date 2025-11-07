@@ -1,3 +1,13 @@
+// -----------------------------------------------------------------------------
+// File: eslint.config.js
+// Description: ESLint configuration for ReqEngine frontend - defines code
+//              quality rules, React hooks validation, and linting standards.
+// Author: Pradyumna Chacham
+// Date: November 2025
+// Copyright (c) 2025 Pradyumna Chacham. All rights reserved.
+// License: MIT License - see LICENSE file in the root directory.
+// -----------------------------------------------------------------------------
+
 import js from '@eslint/js'
 import globals from 'globals'
 import reactHooks from 'eslint-plugin-react-hooks'

@@ -1,3 +1,13 @@
+// -----------------------------------------------------------------------------
+// File: SessionHeader.jsx
+// Description: Session header component for ReqEngine - displays current session
+//              information, title, and navigation context across application pages.
+// Author: Pradyumna Chacham
+// Date: November 2025
+// Copyright (c) 2025 Pradyumna Chacham. All rights reserved.
+// License: MIT License - see LICENSE file in the root directory.
+// -----------------------------------------------------------------------------
+
 import React, { useEffect, useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import useSessionStore from '../../store/useSessionStore';

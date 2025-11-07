@@ -1,4 +1,14 @@
-from setuptools import setup, find_packages
+# -----------------------------------------------------------------------------
+# File: setup.py
+# Description: Setup configuration for ReqEngine backend package -
+#              defines package metadata and dependencies for distribution.
+# Author: Pradyumna Chacham
+# Date: November 2025
+# Copyright (c) 2025 Pradyumna Chacham. All rights reserved.
+# License: MIT License - see LICENSE file in the root directory.
+# -----------------------------------------------------------------------------
+
+from setuptools import find_packages, setup
 
 setup(
     name="use-case-extractor-backend",
@@ -18,7 +28,7 @@ setup(
         "PyPDF2==3.0.1",
         "python-docx==1.1.0",
         "pydantic>=2.7.4",
-        "python-dateutil==2.8.2"
+        "python-dateutil==2.8.2",
     ],
     extras_require={
         "dev": [
@@ -26,7 +36,7 @@ setup(
             "pytest-cov>=5.0.0",
             "coverage>=7.3.0",
             "httpx>=0.27.2",
-            "pytest-asyncio>=0.23.0"
+            "pytest-asyncio>=0.23.0",
         ]
-    }
+    },
 )

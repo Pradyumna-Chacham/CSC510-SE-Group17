@@ -1,5 +1,17 @@
+# -----------------------------------------------------------------------------
+# File: test_chunking_strategy.py
+# Description: Test suite for chunking_strategy.py - tests intelligent document
+#              chunking functionality for large document processing.
+# Author: Pradyumna Chacham
+# Date: November 2025
+# Copyright (c) 2025 Pradyumna Chacham. All rights reserved.
+# License: MIT License - see LICENSE file in the root directory.
+# -----------------------------------------------------------------------------
+
 """Test suite for document chunking strategy"""
+
 import pytest
+
 from chunking_strategy import DocumentChunker
 
 
@@ -75,11 +87,13 @@ This ensures we get proper paragraph-based splitting."""
 def test_chunk_by_sentences():
     """Test sentence-based chunking with overlap"""
     chunker = DocumentChunker(max_tokens=20)  # Very small limit to force chunking
-    text = ("First sentence that is quite long to exceed the token limit. "
-            "Second sentence with additional content for testing. "
-            "Third sentence that helps ensure proper splitting. "
-            "Fourth sentence continuing the long text passage. "
-            "Fifth sentence to guarantee multiple chunks.")
+    text = (
+        "First sentence that is quite long to exceed the token limit. "
+        "Second sentence with additional content for testing. "
+        "Third sentence that helps ensure proper splitting. "
+        "Fourth sentence continuing the long text passage. "
+        "Fifth sentence to guarantee multiple chunks."
+    )
 
     chunks = chunker.chunk_document(text, strategy="sentence")
     assert len(chunks) > 1
@@ -89,16 +103,18 @@ def test_chunk_by_sentences():
     assert "First sentence" in chunks[0]["text"]
     # Look for overlap in consecutive chunks
     found_overlap = False
-    for i in range(len(chunks)-1):
+    for i in range(len(chunks) - 1):
         last_sentence = chunks[i]["text"].split(". ")[-1]
-        if last_sentence and last_sentence in chunks[i+1]["text"]:
+        if last_sentence and last_sentence in chunks[i + 1]["text"]:
             found_overlap = True
             break
     assert found_overlap, "No sentence overlap found between consecutive chunks"
+
+
 def test_auto_strategy_detection():
     """Test automatic strategy detection"""
     chunker = DocumentChunker(max_tokens=100)
-    
+
     # Test section detection
     section_text = """# Section 1
 Content
@@ -130,16 +146,16 @@ Paragraph 5"""
 def test_merge_extracted_use_cases():
     """Test merging use cases from multiple chunks"""
     chunker = DocumentChunker()
-    
+
     chunk_results = [
         [
             {"title": "Use Case 1", "description": "First description"},
-            {"title": "Use Case 2", "description": "Second description"}
+            {"title": "Use Case 2", "description": "Second description"},
         ],
         [
             {"title": "Use Case 1", "description": "Duplicate"},  # Should be skipped
-            {"title": "Use Case 3", "description": "Third description"}
-        ]
+            {"title": "Use Case 3", "description": "Third description"},
+        ],
     ]
 
     merged = chunker.merge_extracted_use_cases(chunk_results)
@@ -152,7 +168,7 @@ def test_merge_extracted_use_cases():
 def test_section_patterns():
     """Test different section header patterns"""
     chunker = DocumentChunker(max_tokens=1000)
-    
+
     # Test markdown headers
     md_text = """# Section 1
 Content 1
@@ -163,15 +179,17 @@ Content 2
 ### Deep Section
 Content 3"""
     assert chunker._detect_best_strategy(md_text) == "section"
-    
+
     # Test numbered sections
     num_text = """1. First Section
 Content 1
 
 2. Second Section
 Content 2"""
-    assert chunker._detect_best_strategy(num_text) == "sentence"  # Current implementation uses sentence for numbered lists
-    
+    assert (
+        chunker._detect_best_strategy(num_text) == "sentence"
+    )  # Current implementation uses sentence for numbered lists
+
     # Test ALL CAPS headers
     caps_text = """INTRODUCTION:
 Content 1
@@ -179,7 +197,10 @@ Content 1
 METHODOLOGY:
 Content 2"""
     # Current implementation prefers sentence-based chunking
-    assert chunker._detect_best_strategy(caps_text) in ["section", "sentence"]  # Allow either strategy
+    assert chunker._detect_best_strategy(caps_text) in [
+        "section",
+        "sentence",
+    ]  # Allow either strategy
     mixed_text = """# Introduction
 Content 1
 
@@ -194,21 +215,27 @@ Content 3"""
 def test_token_estimation():
     """Test token estimation accuracy"""
     chunker = DocumentChunker(max_tokens=100)
-    
+
     # Test exact estimation
     text = "a" * 400  # Should be approximately 100 tokens
     chunks = chunker.chunk_document(text)
     assert chunks[0]["estimated_tokens"] == 100
-    
-        # Test estimation with whitespace
-    text_with_spaces = " ".join(["word"] * 50)  # Each word + space = ~8 chars = 2 tokens
+
+    # Test estimation with whitespace
+    text_with_spaces = " ".join(
+        ["word"] * 50
+    )  # Each word + space = ~8 chars = 2 tokens
     chunks = chunker.chunk_document(text_with_spaces)
-    assert 55 <= chunks[0]["estimated_tokens"] <= 65  # Adjusted based on actual implementation
+    assert (
+        55 <= chunks[0]["estimated_tokens"] <= 65
+    )  # Adjusted based on actual implementation
+
+
 def test_invalid_strategy():
     """Test handling of invalid chunking strategy"""
     chunker = DocumentChunker()
     text = "Some test content"
-    
+
     # Invalid strategy should fall back to sentence
     chunks = chunker.chunk_document(text, strategy="invalid_strategy")
     assert len(chunks) == 1
@@ -218,23 +245,24 @@ def test_invalid_strategy():
 def test_max_chunk_size():
     """Test enforcement of maximum chunk size"""
     chunker = DocumentChunker(max_tokens=20)  # Very small limit
-    
+
     # Create text that's definitely larger than max_tokens
     text = "Very long sentence. " * 20
-    
+
     # Test with different strategies
     for strategy in ["section", "paragraph", "sentence"]:
         chunks = chunker.chunk_document(text, strategy=strategy)
         for chunk in chunks:
             # Current implementation focuses on token count rather than char count
-            assert chunk["estimated_tokens"] <= chunker.max_tokens * 1.5, \
-                f"Chunk exceeds max tokens with strategy {strategy}"
+            assert (
+                chunk["estimated_tokens"] <= chunker.max_tokens * 1.5
+            ), f"Chunk exceeds max tokens with strategy {strategy}"
 
 
 def test_formatting_preservation():
     """Test preservation of formatting within chunks"""
     chunker = DocumentChunker(max_tokens=100)
-    
+
     # Test with markdown formatting
     md_text = """# Header
 - List item 1
@@ -243,10 +271,10 @@ def test_formatting_preservation():
 *Italic text* and **bold text**
 1. Numbered item
 2. Another item"""
-    
+
     chunks = chunker.chunk_document(md_text)
     chunk_text = chunks[0]["text"]
-    
+
     # Check if formatting is preserved
     assert "#" in chunk_text
     assert "*Italic text*" in chunk_text
@@ -258,14 +286,16 @@ def test_formatting_preservation():
 def test_edge_cases():
     """Test edge cases and error handling"""
     chunker = DocumentChunker(max_tokens=20)  # Small limit to force chunking
-    
+
     # Empty text
     chunks = chunker.chunk_document("")
     assert len(chunks) == 1
     assert chunks[0]["text"] == ""
-    
+
     # Very long text
-    long_text = "This is sentence one. " * 50  # Creates a long text with natural sentence breaks
+    long_text = (
+        "This is sentence one. " * 50
+    )  # Creates a long text with natural sentence breaks
     chunks = chunker.chunk_document(long_text, strategy="sentence")
     assert len(chunks) > 1
     assert all(len(chunk["text"]) <= chunker.max_chars_per_chunk for chunk in chunks)

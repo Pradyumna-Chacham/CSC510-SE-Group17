@@ -1,3 +1,13 @@
+// -----------------------------------------------------------------------------
+// File: UseCaseDetail.jsx
+// Description: Use case detail page for ReqEngine - displays comprehensive
+//              view of individual use cases with full specifications and quality metrics.
+// Author: Pradyumna Chacham
+// Date: November 2025
+// Copyright (c) 2025 Pradyumna Chacham. All rights reserved.
+// License: MIT License - see LICENSE file in the root directory.
+// -----------------------------------------------------------------------------
+
 import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { api } from '../api/client';

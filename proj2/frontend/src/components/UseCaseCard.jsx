@@ -1,3 +1,13 @@
+// -----------------------------------------------------------------------------
+// File: UseCaseCard.jsx
+// Description: Use case display component for ReqEngine - renders individual
+//              use cases with expand/collapse, refinement, and quality indicators.
+// Author: Pradyumna Chacham
+// Date: November 2025
+// Copyright (c) 2025 Pradyumna Chacham. All rights reserved.
+// License: MIT License - see LICENSE file in the root directory.
+// -----------------------------------------------------------------------------
+
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { api } from '../api/client';

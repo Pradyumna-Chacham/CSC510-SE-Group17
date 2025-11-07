@@ -1,3 +1,13 @@
+// -----------------------------------------------------------------------------
+// File: vite.config.js
+// Description: Vite build configuration for ReqEngine frontend - defines
+//              build settings, plugins, and test configuration for React app.
+// Author: Pradyumna Chacham
+// Date: November 2025
+// Copyright (c) 2025 Pradyumna Chacham. All rights reserved.
+// License: MIT License - see LICENSE file in the root directory.
+// -----------------------------------------------------------------------------
+
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 
@@ -8,7 +18,8 @@ export default defineConfig({
     globals: true,
     environment: 'jsdom',
     setupFiles: './src/setupTests.js',
-    coverage: {
+    coverage: { 
+      provider: 'v8',
       reporter: ['text', 'html'],
       exclude: [
         'node_modules/',

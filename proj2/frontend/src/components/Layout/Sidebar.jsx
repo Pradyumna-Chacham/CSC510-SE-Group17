@@ -1,3 +1,13 @@
+// -----------------------------------------------------------------------------
+// File: Sidebar.jsx
+// Description: Sidebar navigation component for ReqEngine - provides session
+//              management, navigation menu, and quick access to main features.
+// Author: Pradyumna Chacham
+// Date: November 2025
+// Copyright (c) 2025 Pradyumna Chacham. All rights reserved.
+// License: MIT License - see LICENSE file in the root directory.
+// -----------------------------------------------------------------------------
+
 import React, { useEffect, useState, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { api } from '../../api/client';

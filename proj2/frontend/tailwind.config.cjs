@@ -1,3 +1,13 @@
+// -----------------------------------------------------------------------------
+// File: tailwind.config.cjs
+// Description: Tailwind CSS configuration for ReqEngine frontend - defines
+//              styling theme, colors, and utility classes for the application.
+// Author: Pradyumna Chacham
+// Date: November 2025
+// Copyright (c) 2025 Pradyumna Chacham. All rights reserved.
+// License: MIT License - see LICENSE file in the root directory.
+// -----------------------------------------------------------------------------
+
 /** @type {import('tailwindcss').Config} */
 export default {
   content: [

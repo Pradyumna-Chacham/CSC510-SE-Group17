@@ -28,10 +28,10 @@
 | *Q5 - Support*                 | |  |   |   |
 |Question 5.1| Does your software describe how a user can get help with using your software?| ✅   | ❌  | See [docs/CONTRIBUTING.md](CONTRIBUTING.md) and [README.md](../README.md) "Contributing" section |
 |Question 5.2| Does your website and documentation describe what support, if any, you provide to users and developers?| ✅   | ❌  | See [docs/CONTRIBUTING.md](CONTRIBUTING.md) "Contributing to ReqEngine" section |
-|Question 5.3| Does your project have an e-mail address or forum that is solely for supporting users?| ✅   | ❌  | GitHub Issues serve as the support forum |
+|Question 5.3| Does your project have an e-mail address or forum that is solely for supporting users?| ✅   | ❌  | See [README.md](../README.md) "Support" section |
 |Question 5.4| Are e-mails to your support e-mail address received by more than one person?| ✅   | ❌  | GitHub Issues are visible to all project maintainers |
-|Question 5.5| Does your project have a ticketing system to manage bug reports and feature requests?| ✅   | ❌  | GitHub Issues system for bug reports and feature requests |
-|Question 5.6| Is your project's ticketing system publicly visible to your users, so they can view bug reports and feature requests?| ✅   | ❌  | GitHub Issues are publicly visible |
+|Question 5.5| Does your project have a ticketing system to manage bug reports and feature requests?| ✅   | ❌  | See [Git Issues](https://github.com/Pradyumna-Chacham/CSC510-SE-Group17/issues) |
+|Question 5.6| Is your project's ticketing system publicly visible to your users, so they can view bug reports and feature requests?| ✅   | ❌  | See [Git Issues](https://github.com/Pradyumna-Chacham/CSC510-SE-Group17/issues) |
 | *Q6 - Maintainability*         | |  |   |   |
 |Question 6.1| Is your software's architecture and design modular?| ✅   | ❌  | See [README.md](../README.md) "Project Structure" - modular FastAPI backend and React frontend |
 |Question 6.2| Does your software use an accepted coding standard or convention?| ✅   | ❌  | Python PEP8, ESLint for JavaScript, see [docs/CONTRIBUTING.md](CONTRIBUTING.md) |
@@ -85,7 +85,7 @@
 |Question 15.4| Is your software released under an open source licence?| ✅   | ❌  |See [LICENSE.md](../LICENSE.md) MIT License is an open source license |
 |Question 15.5| Is your software released under an OSI-approved open-source licence?| ✅   | ❌  | See [LICENSE.md](../LICENSE.md) MIT License is OSI-approved |
 |Question 15.6| Does each of your source code files include a licence header?| ❌   | ✅  | Source files lack individual license headers |
-|Question 15.7| Do you have a recommended citation for your software?| ✅   | ❌  | N/A |
+|Question 15.7| Do you have a recommended citation for your software?| ✅   | ❌  | See [README.md](../README.md) "Citation" section |
 | *Q16 - Future Plans*           |  |  |   |   |
 |Question 16.1| Does your website or documentation include a project roadmap (a list of project and development milestones for the next 3, 6 and 12 months)?| ❌   | ✅  | See [docs/CHANGELOG.md](CHANGELOG.md) |
 |Question 16.2| Does your website or documentation describe how your project is funded, and the period over which funding is guaranteed?| ❌   | ✅  | N/A |

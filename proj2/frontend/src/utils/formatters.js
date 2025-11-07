@@ -1,3 +1,13 @@
+// -----------------------------------------------------------------------------
+// File: formatters.js
+// Description: Utility functions for formatting data in ReqEngine frontend -
+//              handles date formatting, text processing, and display utilities.
+// Author: Pradyumna Chacham
+// Date: November 2025
+// Copyright (c) 2025 Pradyumna Chacham. All rights reserved.
+// License: MIT License - see LICENSE file in the root directory.
+// -----------------------------------------------------------------------------
+
 import { format } from 'date-fns';
 
 export const formatDate = (dateString) => {

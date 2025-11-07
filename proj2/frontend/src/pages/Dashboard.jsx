@@ -1,3 +1,13 @@
+// -----------------------------------------------------------------------------
+// File: Dashboard.jsx
+// Description: Dashboard page component for ReqEngine - displays session
+//              overview, statistics, and navigation to main application features.
+// Author: Pradyumna Chacham
+// Date: November 2025
+// Copyright (c) 2025 Pradyumna Chacham. All rights reserved.
+// License: MIT License - see LICENSE file in the root directory.
+// -----------------------------------------------------------------------------
+
 import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { api } from '../api/client';

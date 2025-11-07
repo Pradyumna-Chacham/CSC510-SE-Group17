@@ -1,3 +1,13 @@
+// -----------------------------------------------------------------------------
+// File: QualityBadge.jsx
+// Description: Quality badge component for ReqEngine - displays use case quality
+//              scores with color-coded indicators and formatted labels.
+// Author: Pradyumna Chacham
+// Date: November 2025
+// Copyright (c) 2025 Pradyumna Chacham. All rights reserved.
+// License: MIT License - see LICENSE file in the root directory.
+// -----------------------------------------------------------------------------
+
 import React from 'react';
 import { getQualityColor, getQualityLabel } from '../utils/formatters';
 

@@ -1,3 +1,13 @@
+// -----------------------------------------------------------------------------
+// File: SessionHistory.jsx
+// Description: Session history page for ReqEngine - displays all user sessions
+//              with navigation, management, and historical overview functionality.
+// Author: Pradyumna Chacham
+// Date: November 2025
+// Copyright (c) 2025 Pradyumna Chacham. All rights reserved.
+// License: MIT License - see LICENSE file in the root directory.
+// -----------------------------------------------------------------------------
+
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { api } from '../api/client';

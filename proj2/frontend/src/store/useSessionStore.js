@@ -1,3 +1,13 @@
+// -----------------------------------------------------------------------------
+// File: useSessionStore.js
+// Description: Zustand state management store for ReqEngine - manages session
+//              state, project context, and use cases across the application.
+// Author: Pradyumna Chacham
+// Date: November 2025
+// Copyright (c) 2025 Pradyumna Chacham. All rights reserved.
+// License: MIT License - see LICENSE file in the root directory.
+// -----------------------------------------------------------------------------
+
 import { create } from 'zustand';
 
 const useSessionStore = create((set, get) => ({

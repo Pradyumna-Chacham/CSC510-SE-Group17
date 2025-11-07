@@ -1,3 +1,13 @@
+// -----------------------------------------------------------------------------
+// File: LoadingSpinner.jsx
+// Description: Loading spinner component for ReqEngine - displays animated
+//              loading indicator with customizable message for async operations.
+// Author: Pradyumna Chacham
+// Date: November 2025
+// Copyright (c) 2025 Pradyumna Chacham. All rights reserved.
+// License: MIT License - see LICENSE file in the root directory.
+// -----------------------------------------------------------------------------
+
 import React from 'react';
 
 function LoadingSpinner({ message = 'Loading...' }) {

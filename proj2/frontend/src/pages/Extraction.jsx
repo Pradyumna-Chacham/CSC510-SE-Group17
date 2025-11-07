@@ -1,3 +1,13 @@
+// -----------------------------------------------------------------------------
+// File: Extraction.jsx
+// Description: Use case extraction page for ReqEngine - handles document upload,
+//              text input, and displays extracted use cases with refinement options.
+// Author: Pradyumna Chacham
+// Date: November 2025
+// Copyright (c) 2025 Pradyumna Chacham. All rights reserved.
+// License: MIT License - see LICENSE file in the root directory.
+// -----------------------------------------------------------------------------
+
 import React, { useState } from 'react';
 import { api } from '../api/client';
 import { toast } from 'react-toastify';
