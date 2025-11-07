@@ -19,24 +19,31 @@ jobs:
       uses: actions/setup-python@v4
       with:
         python-version: '3.11'
-        cache: 'pip'
     
     - name: Install dependencies
-      working-directory: ./backend
+      working-directory: ./proj2/backend
       run: |
         python -m pip install --upgrade pip
-        pip install -r requirements.txt
+        if [ -f requirements.txt ]; then
+          pip install -r requirements.txt
+        fi
         pip install pytest pytest-cov
     
     - name: Run backend tests with coverage
-      working-directory: ./backend
+      working-directory: ./proj2/backend
       run: |
-        pytest tests/ --cov=. --cov-report=xml --cov-report=term -v
+        if [ -d tests ]; then
+          pytest tests/ --cov=. --cov-report=xml --cov-report=term -v
+        elif [ -d test ]; then
+          pytest test/ --cov=. --cov-report=xml --cov-report=term -v
+        else
+          pytest --cov=. --cov-report=xml --cov-report=term -v
+        fi
     
     - name: Upload backend coverage to Codecov
       uses: codecov/codecov-action@v3
       with:
-        files: ./backend/coverage.xml
+        files: ./proj2/backend/coverage.xml
         flags: backend
         name: backend-coverage
         fail_ci_if_error: false
@@ -54,20 +61,32 @@ jobs:
       with:
         node-version: '18'
         cache: 'npm'
-        cache-dependency-path: ./frontend/package-lock.json
+        cache-dependency-path: ./proj2/frontend/package-lock.json
     
     - name: Install dependencies
-      working-directory: ./frontend
-      run: npm ci
+      working-directory: ./proj2/frontend
+      run: |
+        if [ -f package-lock.json ]; then
+          npm ci
+        else
+          npm install
+        fi
     
     - name: Run frontend tests with coverage
-      working-directory: ./frontend
-      run: npm run test:coverage
+      working-directory: ./proj2/frontend
+      run: |
+        if grep -q "test:coverage" package.json; then
+          npm run test:coverage
+        elif grep -q "\"test\"" package.json; then
+          npm test -- --coverage
+        else
+          npx vitest run --coverage
+        fi
     
     - name: Upload frontend coverage to Codecov
       uses: codecov/codecov-action@v3
       with:
-        files: ./frontend/coverage/coverage-final.json
+        files: ./proj2/frontend/coverage/coverage-final.json
         flags: frontend
         name: frontend-coverage
         fail_ci_if_error: false
@@ -82,9 +101,11 @@ jobs:
     - name: Check test results
       run: |
         if [ "${{ needs.backend-tests.result }}" == "success" ] && [ "${{ needs.frontend-tests.result }}" == "success" ]; then
-          echo "All tests passed!"
+          echo "✅ All tests passed!"
           exit 0
         else
-          echo "Some tests failed!"
+          echo "❌ Some tests failed!"
+          echo "Backend: ${{ needs.backend-tests.result }}"
+          echo "Frontend: ${{ needs.frontend-tests.result }}"
           exit 1
         fi
