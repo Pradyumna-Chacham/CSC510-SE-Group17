@@ -19,7 +19,7 @@ from datetime import datetime
 from typing import Dict, List, Optional, Tuple
 
 import torch
-from fastapi import FastAPI, File, HTTPException, UploadFile
+from fastapi import FastAPI, File, Form, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from pydantic import BaseModel
@@ -29,7 +29,7 @@ from transformers import AutoModelForCausalLM, AutoTokenizer, pipeline
 from chunking_strategy import DocumentChunker
 from db import (add_conversation_message, add_session_summary, create_session,
                 get_conversation_history, get_db_path, get_latest_summary,
-                get_session_context, get_session_use_cases, get_use_case_by_id,
+                get_session_context, get_session_title, get_session_use_cases, get_use_case_by_id,
                 init_db, migrate_db, update_session_context, update_use_case)
 from document_parser import (extract_text_from_file, get_text_stats,
                              validate_file_size)
@@ -95,46 +95,62 @@ class QueryRequest(BaseModel):
 
 
 # --- Load LLaMA 3.2 3B Instruct ---
-MODEL_NAME = "meta-llama/Llama-3.2-3B-Instruct"
-token = os.getenv("HF_TOKEN")
+# Add this RIGHT BEFORE: MODEL_NAME = "meta-llama/Llama-3.2-3B-Instruct"
 
-print("Loading model with 4-bit quantization...")
+# ============================================================================
+# MODEL LOADING - Skip in test environment
+# ============================================================================
 
-from transformers import BitsAndBytesConfig
+# Around line 85-113 in your main.py, wrap the model loading:
 
-# Configure 4-bit quantization for RTX 3050
-bnb_config = BitsAndBytesConfig(
-    load_in_4bit=True,
-    bnb_4bit_quant_type="nf4",
-    bnb_4bit_use_double_quant=True,
-    bnb_4bit_compute_dtype=torch.float16,
-)
+if not os.getenv("TESTING"):
+    # --- Load LLaMA 3.2 3B Instruct ---
+    MODEL_NAME = "meta-llama/Llama-3.2-3B-Instruct"
+    token = os.getenv("HF_TOKEN")
 
-tokenizer = AutoTokenizer.from_pretrained(MODEL_NAME, token=token)
+    print("Loading model with 4-bit quantization...")
 
-# Load model with 4-bit quantization
-model = AutoModelForCausalLM.from_pretrained(
-    MODEL_NAME,
-    quantization_config=bnb_config,
-    device_map="auto",
-    token=token,
-    torch_dtype=torch.float16,
-    low_cpu_mem_usage=True,
-)
+    from transformers import BitsAndBytesConfig
 
-pipe = pipeline("text-generation", model=model, tokenizer=tokenizer, device_map="auto")
+    # Configure 4-bit quantization for RTX 3050
+    bnb_config = BitsAndBytesConfig(
+        load_in_4bit=True,
+        bnb_4bit_quant_type="nf4",
+        bnb_4bit_use_double_quant=True,
+        bnb_4bit_compute_dtype=torch.float16,
+    )
 
-print("✅ Model loaded successfully with 4-bit quantization!")
-print(f"   Model size: ~1.5GB (vs 6GB unquantized)")
-print(f"   Expected speedup: 2-3x faster\n")
+    tokenizer = AutoTokenizer.from_pretrained(MODEL_NAME, token=token)
 
+    # Load model with 4-bit quantization
+    model = AutoModelForCausalLM.from_pretrained(
+        MODEL_NAME,
+        quantization_config=bnb_config,
+        device_map="auto",
+        token=token,
+        torch_dtype=torch.float16,
+        low_cpu_mem_usage=True,
+    )
 
-# Initialize embedding model for duplicate detection
-embedder = SentenceTransformer("all-MiniLM-L6-v2")
+    pipe = pipeline("text-generation", model=model, tokenizer=tokenizer, device_map="auto")
 
-# Initialize document chunker
-chunker = DocumentChunker(max_tokens=3000)
+    print("✅ Model loaded successfully with 4-bit quantization!")
+    print(f"   Model size: ~1.5GB (vs 6GB unquantized)")
+    print(f"   Expected speedup: 2-3x faster\n")
 
+    # Initialize embedding model for duplicate detection
+    embedder = SentenceTransformer("all-MiniLM-L6-v2")
+
+    # Initialize document chunker
+    chunker = DocumentChunker(max_tokens=3000)
+else:
+    print("⚠️  Testing mode: Model loading skipped")
+    MODEL_NAME = "meta-llama/Llama-3.2-3B-Instruct"  # Define for tests
+    tokenizer = None
+    model = None
+    pipe = None
+    embedder = None
+    chunker = None
 
 # ============================================================================
 # SMART USE CASE ESTIMATOR - FIXED!
@@ -1420,6 +1436,16 @@ def update_session(request: SessionRequest):
     return {"message": "Session updated", "session_id": request.session_id}
 
 
+@app.get("/session/{session_id}/title")
+def get_session_title_endpoint(session_id: str):
+    """Get session title"""
+    title = get_session_title(session_id)
+    if title is None:
+        raise HTTPException(status_code=404, detail="Session not found")
+    
+    return {"session_id": session_id, "session_title": title}
+
+
 @app.get("/session/{session_id}/history")
 def get_session_history(session_id: str, limit: int = 10):
     """Get conversation history for a session"""
@@ -1465,8 +1491,8 @@ def parse_use_case_fast(request: InputText):
         )
         print(f"✅ Created new session: {session_id} with title: {session_title}")
     else:
-        # Session exists - only update if NEW values are provided
-        # This prevents overwriting with empty strings
+        # Session exists - only update context if NEW values are provided
+        # Don't update the session title if it already exists (prevents overwriting file upload titles)
         update_needed = False
 
         if request.project_context and request.project_context != existing_context.get(
@@ -1482,19 +1508,23 @@ def parse_use_case_fast(request: InputText):
                 session_id=session_id,
                 project_context=request.project_context or None,
                 domain=request.domain or None,
+                # Don't update session_title here to preserve file upload titles
             )
-            print(f"✅ Updated existing session: {session_id}")
+            print(f"✅ Updated existing session context: {session_id}")
         else:
             print(f"✅ Using existing session: {session_id}")
             print(f"   Project: {existing_context.get('project_context') or 'Not set'}")
             print(f"   Domain: {existing_context.get('domain') or 'Not set'}")
 
+    # Store user input in conversation history
     add_conversation_message(
         session_id=session_id,
         role="user",
         content=request.raw_text,
         metadata={"type": "requirement_input"},
     )
+    
+    print(f"💬 User message stored in session: {session_id}")
 
     # Check text size and decide processing strategy
     stats = get_text_stats(request.raw_text)
@@ -1742,9 +1772,9 @@ def parse_use_case_fast(request: InputText):
 @app.post("/parse_use_case_document/")
 async def parse_use_case_from_document(
     file: UploadFile = File(...),
-    session_id: Optional[str] = None,
-    project_context: Optional[str] = None,
-    domain: Optional[str] = None,
+    session_id: Optional[str] = Form(None),
+    project_context: Optional[str] = Form(None),
+    domain: Optional[str] = Form(None),
 ):
     """
     Extract use cases from uploaded document (PDF, DOCX, TXT, MD)
@@ -1756,6 +1786,10 @@ async def parse_use_case_from_document(
     print(f"{'='*80}")
     print(f"Filename: {file.filename}")
     print(f"Content-Type: {file.content_type}")
+    print(f"📋 Received Parameters:")
+    print(f"   session_id: {repr(session_id)}")
+    print(f"   project_context: {repr(project_context)}")
+    print(f"   domain: {repr(domain)}")
 
     # Validate file size (10MB max)
     validate_file_size(file, max_size_mb=10)
@@ -1778,21 +1812,45 @@ async def parse_use_case_from_document(
     print(f"   Estimated tokens: {int(stats['estimated_tokens']):,}")
     print(f"   Size category: {stats['size_category']}")
 
-    # Create/get session
-    session_id = session_id or str(uuid.uuid4())
+    # Create/get session - ENHANCED with better debugging
+    if session_id is None:
+        session_id = str(uuid.uuid4())
+        print(f"\n🆕 Generated new session_id: {session_id} (no session provided)")
+    else:
+        print(f"\n🔑 Using provided session_id: {session_id}")
 
-    # DON'T create session here - let parse_use_case_fast() handle it
-    # This prevents overwriting existing sessions
-
-    # But DO store the document upload message
-    # First, ensure session exists (in case it's a new session)
+    # Check if session exists
     existing_context = get_session_context(session_id)
+    print(f"📋 Session check for {session_id}: {'EXISTS' if existing_context else 'NEW'}")
+    
     if existing_context is None:
+        # Generate session title from extracted content (not just filename)
+        session_title = generate_session_title(extracted_text, use_llm=True)
+        
         create_session(
             session_id=session_id,
             project_context=project_context or "",
             domain=domain or "",
+            session_title=session_title,
         )
+        print(f"✅ Created new session for file upload: {session_id} with title: {session_title}")
+    else:
+        # EXISTING SESSION: Don't overwrite the session title or context  
+        print(f"✅ Using existing session for file upload: {session_id}")
+        print(f"   Existing title: {existing_context.get('session_title', 'N/A')}")
+        print(f"   Project: {existing_context.get('project_context') or 'Not set'}")
+        print(f"   Domain: {existing_context.get('domain') or 'Not set'}")
+        print(f"   File: {file.filename}")
+       
+        # Only update if new values provided
+        if project_context or domain:
+            update_session_context(
+                session_id=session_id,
+                project_context=project_context,
+                domain=domain,
+                # CRITICAL: Don't update session_title here
+            )
+            print(f"✅ Updated session context (preserved existing title)")
 
     # Store document upload in conversation history
     add_conversation_message(

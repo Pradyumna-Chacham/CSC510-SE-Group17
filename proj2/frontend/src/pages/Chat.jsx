@@ -81,6 +81,12 @@ function Chat() {
       const history = response.data.conversation_history || [];
       const freshUseCases = response.data.generated_use_cases || [];
       
+      // Update session title in store if available
+      const sessionTitle = response.data.session_context?.session_title;
+      if (sessionTitle && sessionTitle !== 'New Session') {
+        setCurrentSession(currentSessionId, sessionTitle);
+      }
+      
       const freshUseCasesMap = new Map();
       freshUseCases.forEach(uc => {
         if (uc.id) {
@@ -150,6 +156,12 @@ function Chat() {
     setLoading(true);
 
     try {
+      // Enhanced logging for text input
+      console.log('💬 Text Input Session Debug:');
+      console.log('   Current Session ID:', currentSessionId || 'None (new session will be created)');
+      console.log('   Input Text Length:', inputText.length);
+      console.log('   Messages in Chat:', messages.length);
+      
       const response = await api.extractFromText({
         raw_text: inputText,
         session_id: currentSessionId || undefined,
@@ -157,7 +169,15 @@ function Chat() {
       const normalized = normalizeExtractionResponse(response.data);
 
       if (!currentSessionId) {
-        setCurrentSession(normalized.session_id);
+        // For new sessions, fetch the session title from backend
+        try {
+          const titleResponse = await api.getSessionTitle(normalized.session_id);
+          const sessionTitle = titleResponse.data.session_title || 'New Session';
+          setCurrentSession(normalized.session_id, sessionTitle);
+        } catch (error) {
+          console.warn('Could not fetch session title, using default');
+          setCurrentSession(normalized.session_id);
+        }
       }
 
       const assistantMessage = {
@@ -183,56 +203,99 @@ function Chat() {
     }
   };
 
-  const handleFileUpload = async (file) => {
-    const userMessage = {
-      role: 'user',
-      content: '',
-      metadata: {
-        type: 'document_upload',
-        filename: file.name,
-        size: file.size,
-      },
+ const handleFileUpload = async (file) => {
+  const userMessage = {
+    role: 'user',
+    content: '',
+    metadata: {
+      type: 'document_upload',
+      filename: file.name,
+      size: file.size,
+    },
+    timestamp: new Date().toISOString(),
+  };
+
+  setMessages(prev => [...prev, userMessage]);
+  setLoading(true);
+  setShowFileUpload(false);
+
+  try {
+    // Create FormData
+    const formData = new FormData();
+    formData.append('file', file);
+
+    // Enhanced logging to track session behavior
+    console.log('📤 File Upload Session Debug:');
+    console.log('   Current Session ID:', currentSessionId || 'None (new session will be created)');
+    console.log('   File Name:', file.name);
+    console.log('   Messages in Chat:', messages.length);
+    
+    const response = await api.extractFromDocument(formData, {
+      session_id: currentSessionId,  // Pass current session via options
+      // project_context and domain are optional - backend will use session context
+    });
+
+    console.log('✅ File upload response received:');
+    console.log('   Response Session ID:', response.data.session_id);
+    console.log('   Expected Session ID:', currentSessionId || 'New session expected');
+    
+    const normalized = normalizeExtractionResponse(response.data);
+
+    // ✅ Verify session was maintained
+    if (currentSessionId && response.data.session_id !== currentSessionId) {
+      console.warn('⚠️ WARNING: Backend returned different session!');
+      console.warn('   Expected:', currentSessionId);
+      console.warn('   Received:', response.data.session_id);
+    } else if (currentSessionId) {
+      console.log('✅ Session maintained:', currentSessionId);
+    }
+
+    if (!currentSessionId) {
+      // Only set session for truly new sessions (when we had no current session)
+      try {
+        const titleResponse = await api.getSessionTitle(normalized.session_id);
+        const sessionTitle = titleResponse.data.session_title || 
+                            file.name.replace(/\.[^/.]+$/, ""); // Fallback to filename without extension
+        setCurrentSession(normalized.session_id, sessionTitle);
+        console.log('🆕 New session created from file upload:', normalized.session_id, 'with title:', sessionTitle);
+      } catch (error) {
+        console.warn('Could not fetch session title, using filename');
+        setCurrentSession(normalized.session_id, file.name.replace(/\.[^/.]+$/, ""));
+      }
+    } else {
+      // We had an existing session, it should have been maintained
+      console.log('✅ File uploaded to existing session:', currentSessionId);
+      if (normalized.session_id !== currentSessionId) {
+        console.error('🚨 CRITICAL: Session ID mismatch detected!');
+        console.error('   Frontend session:', currentSessionId);
+        console.error('   Backend returned:', normalized.session_id);
+        // In this case, we should update to use the backend session
+        setCurrentSession(normalized.session_id);
+      }
+    }
+
+    const assistantMessage = {
+      role: 'assistant',
+      content: `✅ Extracted ${normalized.extracted_count} use cases from ${file.name}`,
+      results: normalized.results,
+      validation_results: normalized.validation_results,
       timestamp: new Date().toISOString(),
     };
 
-    setMessages(prev => [...prev, userMessage]);
-    setLoading(true);
-    setShowFileUpload(false);
-
-    const formData = new FormData();
-    formData.append('file', file);
-    if (currentSessionId) formData.append('session_id', currentSessionId);
-
-    try {
-      const response = await api.extractFromDocument(formData);
-      const normalized = normalizeExtractionResponse(response.data);
-
-      if (!currentSessionId) {
-        setCurrentSession(normalized.session_id);
-      }
-
-      const assistantMessage = {
-        role: 'assistant',
-        content: `✅ Extracted ${normalized.extracted_count} use cases from ${file.name}`,
-        results: normalized.results,
-        validation_results: normalized.validation_results,
-        timestamp: new Date().toISOString(),
-      };
-
-      setMessages(prev => [...prev, assistantMessage]);
-      toast.success('Document processed!');
-    } catch (error) {
-      console.error('Upload error:', error);
-      const errorMessage = {
-        role: 'assistant',
-        content: '⚠ Could not process file. Make sure backend is running.',
-        timestamp: new Date().toISOString(),
-      };
-      setMessages(prev => [...prev, errorMessage]);
-    } finally {
-      setLoading(false);
-    }
-  };
+    setMessages(prev => [...prev, assistantMessage]);
+    toast.success('Document processed!');
+  } catch (error) {
+    console.error('Upload error:', error);
+    const errorMessage = {
+      role: 'assistant',
+      content: '⚠ Could not process file. Make sure backend is running.',
+      timestamp: new Date().toISOString(),
+    };
+    setMessages(prev => [...prev, errorMessage]);
+  } finally {
+    setLoading(false);
+  }
+};
 
   const handleKeyPress = (e) => {
     if (e.key === 'Enter' && !e.shiftKey) {

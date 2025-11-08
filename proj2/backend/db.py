@@ -298,6 +298,29 @@ def get_conversation_history(session_id: str, limit: int = 10) -> List[Dict]:
     ]
 
 
+def get_session_title(session_id: str) -> Optional[str]:
+    """Get session title"""
+    db_path = get_db_path()
+    conn = sqlite3.connect(db_path)
+    c = conn.cursor()
+
+    c.execute(
+        """
+        SELECT session_title
+        FROM sessions
+        WHERE session_id = ?
+    """,
+        (session_id,),
+    )
+
+    row = c.fetchone()
+    conn.close()
+
+    if row:
+        return row[0] or "New Session"
+    return None
+
+
 def get_session_context(session_id: str) -> Optional[Dict]:
     """Get accumulated context for a session"""
     db_path = get_db_path()
@@ -306,7 +329,7 @@ def get_session_context(session_id: str) -> Optional[Dict]:
 
     c.execute(
         """
-        SELECT project_context, domain, user_preferences
+        SELECT project_context, domain, user_preferences, session_title
         FROM sessions
         WHERE session_id = ?
     """,
@@ -321,6 +344,7 @@ def get_session_context(session_id: str) -> Optional[Dict]:
             "project_context": row[0] or "",
             "domain": row[1] or "",
             "user_preferences": json.loads(row[2]) if row[2] else {},
+            "session_title": row[3] or "New Session",
         }
     return None
 

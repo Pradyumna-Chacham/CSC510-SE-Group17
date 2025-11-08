@@ -34,24 +34,35 @@ export const api = {
   updateSession: (data) => apiClient.post('/session/update', data),
   getSessionHistory: (sessionId, limit = 10) => 
     apiClient.get(`/session/${sessionId}/history`, { params: { limit } }),
+  getSessionTitle: (sessionId) => apiClient.get(`/session/${sessionId}/title`),
   getSessions: () => apiClient.get('/sessions/'),
   deleteSession: (sessionId) => apiClient.delete(`/session/${sessionId}`),
   exportSession: (sessionId) => apiClient.get(`/session/${sessionId}/export`),
 
   // Use Case Extraction
   extractFromText: (data) => apiClient.post('/parse_use_case_rag/', data),
-  extractFromDocument: (formData) => 
-    apiClient.post('/parse_use_case_document/', formData, {
+  
+  // ✅ FIXED: Now accepts options parameter to include session_id
+  extractFromDocument: (formData, options = {}) => {
+    // Ensure formData includes session_id if provided in options
+    if (options.session_id && !formData.has('session_id')) {
+      formData.append('session_id', options.session_id);
+    }
+    if (options.project_context && !formData.has('project_context')) {
+      formData.append('project_context', options.project_context);
+    }
+    if (options.domain && !formData.has('domain')) {
+      formData.append('domain', options.domain);
+    }
+    
+    return apiClient.post('/parse_use_case_document/', formData, {
       headers: { 'Content-Type': 'multipart/form-data' },
-    }),
+    });
+  },
 
   // Use Case Operations
   refineUseCase: (data) => apiClient.post('/use-case/refine', data),
   getSessionUseCases: (sessionId) => apiClient.get(`/session/${sessionId}/history`),
-
-  // ❌ REMOVED: Analytics
-  // getMetrics: (sessionId) => apiClient.get(`/session/${sessionId}/metrics`),
-  // getConflicts: (sessionId) => apiClient.get(`/session/${sessionId}/conflicts`),
 
   // Query
   queryRequirements: (data) => apiClient.post('/query', data),
