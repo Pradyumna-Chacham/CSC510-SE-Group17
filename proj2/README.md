@@ -8,8 +8,9 @@
 [![SQLite](https://img.shields.io/badge/Database-SQLite-003B57.svg?logo=sqlite&logoColor=white)](https://www.sqlite.org/)
 [![Transformers](https://img.shields.io/badge/AI-Transformers-FF6F00.svg?logo=huggingface&logoColor=white)](https://huggingface.co/transformers/)
 [![ChromaDB](https://img.shields.io/badge/Vector_DB-ChromaDB-FF6B6B.svg)](https://www.trychroma.com/)
-[![Backend Tests](https://img.shields.io/badge/Backend_Tests-85%25_Coverage-brightgreen.svg?logo=pytest&logoColor=white)](https://github.com/Pradyumna-Chacham/CSC510-SE-Group17/actions)
-[![Frontend Tests](https://img.shields.io/badge/Frontend_Tests-82%25_Coverage-brightgreen.svg?logo=vitest&logoColor=white)](https://github.com/Pradyumna-Chacham/CSC510-SE-Group17/actions)
+[![Backend Coverage](https://codecov.io/gh/Pradyumna-Chacham/CSC510-SE-Group17/branch/main/graph/badge.svg?flag=backend)](https://codecov.io/gh/Pradyumna-Chacham/CSC510-SE-Group17)
+[![Frontend Coverage](https://codecov.io/gh/Pradyumna-Chacham/CSC510-SE-Group17/branch/main/graph/badge.svg?flag=frontend)](https://codecov.io/gh/Pradyumna-Chacham/CSC510-SE-Group17)
+[![Overall Coverage](https://codecov.io/gh/Pradyumna-Chacham/CSC510-SE-Group17/branch/main/graph/badge.svg)](https://codecov.io/gh/Pradyumna-Chacham/CSC510-SE-Group17)
 [![Build Status](https://img.shields.io/badge/Build-Passing-brightgreen.svg?logo=github&logoColor=white)](https://github.com/Pradyumna-Chacham/CSC510-SE-Group17/actions)
 [![License](https://img.shields.io/badge/License-MIT-yellow.svg)](https://github.com/Pradyumna-Chacham/CSC510-SE-Group17/blob/main/proj2/LICENSE.md)
 [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.XXXXXX.svg)](https://doi.org/10.5281/zenodo.XXXXXX)
@@ -297,6 +298,36 @@ npm run test:ui               # Run with UI interface
 - API client testing
 - State management testing
 - User interaction testing
+
+### 📊 Coverage Reporting
+
+[![Backend Coverage](https://codecov.io/gh/Pradyumna-Chacham/CSC510-SE-Group17/branch/main/graph/badge.svg?flag=backend)](https://codecov.io/gh/Pradyumna-Chacham/CSC510-SE-Group17)
+[![Frontend Coverage](https://codecov.io/gh/Pradyumna-Chacham/CSC510-SE-Group17/branch/main/graph/badge.svg?flag=frontend)](https://codecov.io/gh/Pradyumna-Chacham/CSC510-SE-Group17)
+
+**Quick Coverage Commands:**
+```bash
+# Backend Coverage (Python)
+cd backend && export TESTING=true && python -m pytest tests/ --cov=. --cov-report=html
+
+# Frontend Coverage (React)
+cd frontend && npm test -- --coverage --run
+
+# View HTML Reports
+open backend/htmlcov/index.html    # Backend report
+open frontend/coverage/index.html  # Frontend report
+```
+
+**Current Coverage Status:**
+- **Backend**: 77% line coverage (82/95 tests passing)
+- **Frontend**: Coverage reports generated (127/150 tests passing) 
+- **Overall**: Comprehensive test coverage across all major components
+- **CI/CD**: Automatic coverage reporting via GitHub Actions → Codecov
+
+**Coverage Tools:**
+- **Backend**: `coverage.py` via `pytest-cov`
+- **Frontend**: `@vitest/coverage-v8`
+- **Reports**: HTML, XML, and terminal output
+- **Integration**: Codecov for trend analysis and PR comments
 
 ---
 
