@@ -40,21 +40,23 @@ jobs:
         PYTHONPATH: .
       run: |
         if [ -d tests ]; then
-          pytest tests/ --cov=. --cov-report=xml:coverage.xml --cov-report=term -v
+          pytest tests/ --cov=. --cov-report=xml --cov-report=term -v
         elif [ -d test ]; then
-          pytest test/ --cov=. --cov-report=xml:coverage.xml --cov-report=term -v
+          pytest test/ --cov=. --cov-report=xml --cov-report=term -v
         else
-          pytest --cov=. --cov-report=xml:coverage.xml --cov-report=term -v
+          pytest --cov=. --cov-report=xml --cov-report=term -v
         fi
 
     
     - name: Upload backend coverage to Codecov
       uses: codecov/codecov-action@v3
       with:
+        token: ${{ secrets.CODECOV_TOKEN }}
         files: ./proj2/backend/coverage.xml
         flags: backend
         name: backend-coverage
-        fail_ci_if_error: false
+        fail_ci_if_error: true
+        verbose: true
 
   frontend-tests:
     name: Frontend Tests (React + Vitest)
