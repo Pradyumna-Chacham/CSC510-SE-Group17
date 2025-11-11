@@ -13,7 +13,7 @@
 ![Frontend Coverage](https://img.shields.io/badge/frontend_coverage-84%25-yellow)
 [![Build Status](https://img.shields.io/badge/Build-Passing-brightgreen.svg?logo=github&logoColor=white)](https://github.com/Pradyumna-Chacham/CSC510-SE-Group17/actions)
 [![License](https://img.shields.io/badge/License-MIT-yellow.svg)](https://github.com/Pradyumna-Chacham/CSC510-SE-Group17/blob/main/proj2/LICENSE.md)
-[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.XXXXXX.svg)](https://doi.org/10.5281/zenodo.XXXXXX)
+[![DOI](https://zenodo.org/badge/1044513773.svg)](https://doi.org/10.5281/zenodo.17581553)
 [![Code Style: Black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
 [![Imports: isort](https://img.shields.io/badge/%20imports-isort-%231674b1?style=flat&labelColor=ef8336)](https://pycqa.github.io/isort/)
 [![Linting: Pylint](https://img.shields.io/badge/linting-pylint-yellowgreen)](https://github.com/pylint-dev/pylint)
