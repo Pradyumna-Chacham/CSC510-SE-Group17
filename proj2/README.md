@@ -9,7 +9,7 @@
 [![Transformers](https://img.shields.io/badge/AI-Transformers-FF6F00.svg?logo=huggingface&logoColor=white)](https://huggingface.co/transformers/)
 [![ChromaDB](https://img.shields.io/badge/Vector_DB-ChromaDB-FF6B6B.svg)](https://www.trychroma.com/)
 [![Tests](https://github.com/Pradyumna-Chacham/CSC510-SE-Group17/actions/workflows/tests.yml/badge.svg)](https://github.com/Pradyumna-Chacham/CSC510-SE-Group17/actions)
-![Backend Coverage](https://img.shields.io/badge/backend_coverage-77%25-brightgreen)
+[![codecov](https://codecov.io/github/Pradyumna-Chacham/CSC510-SE-Group17/graph/badge.svg?token=1FJU8ZHQ0A)](https://codecov.io/github/Pradyumna-Chacham/CSC510-SE-Group17)
 ![Frontend Coverage](https://img.shields.io/badge/frontend_coverage-84%25-yellow)
 [![Build Status](https://img.shields.io/badge/Build-Passing-brightgreen.svg?logo=github&logoColor=white)](https://github.com/Pradyumna-Chacham/CSC510-SE-Group17/actions)
 [![License](https://img.shields.io/badge/License-MIT-yellow.svg)](https://github.com/Pradyumna-Chacham/CSC510-SE-Group17/blob/main/proj2/LICENSE.md)
