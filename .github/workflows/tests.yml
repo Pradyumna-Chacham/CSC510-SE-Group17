@@ -5,6 +5,7 @@ on:
     branches: [ main, MAIN ]
   pull_request:
     branches: [ main, MAIN ]
+  workflow_dispatch: 
 
 jobs:
   backend-tests:
