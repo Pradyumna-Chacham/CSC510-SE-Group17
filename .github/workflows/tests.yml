@@ -40,12 +40,13 @@ jobs:
         PYTHONPATH: .
       run: |
         if [ -d tests ]; then
-          pytest tests/ --cov=. --cov-report=xml --cov-report=term -v
+          pytest tests/ --cov=. --cov-report=xml:coverage.xml --cov-report=term -v
         elif [ -d test ]; then
-          pytest test/ --cov=. --cov-report=xml --cov-report=term -v
+          pytest test/ --cov=. --cov-report=xml:coverage.xml --cov-report=term -v
         else
-          pytest --cov=. --cov-report=xml --cov-report=term -v
+          pytest --cov=. --cov-report=xml:coverage.xml --cov-report=term -v
         fi
+
     
     - name: Upload backend coverage to Codecov
       uses: codecov/codecov-action@v3
