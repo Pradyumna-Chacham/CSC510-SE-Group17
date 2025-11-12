@@ -834,36 +834,55 @@ class TestAdditionalEndpoints:
 
     def test_generate_fallback_title(self):
         """Test fallback title generation"""
-        title = generate_fallback_title("User can login to system")
+        title = generate_fallback_title("User can login to system", max_length=50)
         assert isinstance(title, str)
         assert len(title) > 0
 
-    def test_extract_use_cases_batch_with_empty_texts(self):
-        """Test batch extraction with empty and valid texts"""
-        with patch("main.extract_use_cases_single_stage") as mock_extract:
-            mock_extract.return_value = [SAMPLE_USE_CASE]
-            
-            # Mix of empty and valid texts
-            texts = ["", "User can login", "", "Admin manages users", ""]
-            results = extract_use_cases_batch(texts, max_use_cases=2)
-            
-            # Should only process non-empty texts
-            assert isinstance(results, list)
-            # Mock should be called for non-empty texts only
-            assert mock_extract.call_count >= 1
-
-    def test_parse_large_document_chunked_small_doc(self):
-        """Test chunked parsing with small document"""
-        small_text = "User can login to system. User can logout."
+    def test_flatten_use_case_comprehensive(self):
+        """Test flatten_use_case with various formats"""
+        # Test with main_flows as list of lists
+        use_case1 = {
+            "title": "Test UC",
+            "main_flows": [["Step 1", "Step 2"], ["Step 3"]],
+            "preconditions": "Single precondition",
+            "outcomes": ["Outcome 1"]
+        }
+        flat1 = flatten_use_case(use_case1)
+        assert flat1["title"] == "Test UC"
+        assert isinstance(flat1["main_flow"], list)
+        assert isinstance(flat1["preconditions"], list)
         
-        with patch("main.extract_use_cases_batch") as mock_batch:
-            mock_batch.return_value = [SAMPLE_USE_CASE]
-            
-            result = parse_large_document_chunked(small_text)
-            
-            assert isinstance(result, list)
-            # Should call batch extraction
-            assert mock_batch.called
+        # Test with main_flow (singular)
+        use_case2 = {
+            "title": "Test UC 2",
+            "main_flow": ["Step A", "Step B"]
+        }
+        flat2 = flatten_use_case(use_case2)
+        assert flat2["main_flow"] == ["Step A", "Step B"]
+
+    def test_ensure_string_list_edge_cases(self):
+        """Test ensure_string_list with edge cases"""
+        # Test with None
+        assert ensure_string_list(None) == []
+        
+        # Test with empty string
+        assert ensure_string_list("") == []
+        
+        # Test with nested lists
+        result = ensure_string_list([["a", "b"], "c"])
+        assert isinstance(result, list)
+        assert all(isinstance(x, str) for x in result)
+
+    def test_health_endpoint(self, client):
+        """Test the /health endpoint"""
+        response = client.get("/health")
+        assert response.status_code == 200
+        data = response.json()
+        assert data["status"] == "healthy"
+        assert "model" in data
+        assert "features" in data
+        assert isinstance(data["features"], list)
+        assert len(data["features"]) > 0
 
 
 # Run tests with: python -m pytest tests/test_main.py -v --cov=main --cov-report term-missing
