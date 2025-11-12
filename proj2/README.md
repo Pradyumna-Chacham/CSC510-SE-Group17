@@ -9,7 +9,7 @@
 [![Transformers](https://img.shields.io/badge/AI-Transformers-FF6F00.svg?logo=huggingface&logoColor=white)](https://huggingface.co/transformers/)
 [![ChromaDB](https://img.shields.io/badge/Vector_DB-ChromaDB-FF6B6B.svg)](https://www.trychroma.com/)
 [![Tests](https://github.com/Pradyumna-Chacham/CSC510-SE-Group17/actions/workflows/tests.yml/badge.svg)](https://github.com/Pradyumna-Chacham/CSC510-SE-Group17/actions)
-[![Coverage](https://codecov.io/github/Pradyumna-Chacham/CSC510-SE-Group17/graph/badge.svg?token=1FJU8ZHQ0A&flag=backend)](https://codecov.io/github/Pradyumna-Chacham/CSC510-SE-Group17)
+[![codecov](https://codecov.io/github/Pradyumna-Chacham/CSC510-SE-Group17/graph/badge.svg?token=1FJU8ZHQ0A)](https://codecov.io/github/Pradyumna-Chacham/CSC510-SE-Group17)
 [![Build Status](https://img.shields.io/badge/Build-Passing-brightgreen.svg?logo=github&logoColor=white)](https://github.com/Pradyumna-Chacham/CSC510-SE-Group17/actions)
 [![License](https://img.shields.io/badge/License-MIT-yellow.svg)](https://github.com/Pradyumna-Chacham/CSC510-SE-Group17/blob/main/proj2/LICENSE.md)
 [![DOI](https://zenodo.org/badge/1044513773.svg)](https://doi.org/10.5281/zenodo.17581553)
