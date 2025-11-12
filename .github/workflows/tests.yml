@@ -5,7 +5,7 @@ on:
     branches: [ main, MAIN ]
   pull_request:
     branches: [ main, MAIN ]
-  workflow_dispatch: 
+  workflow_dispatch:
 
 jobs:
   backend-tests:
@@ -29,7 +29,6 @@ jobs:
           pip install -r requirements.txt
         fi
         pip install pytest pytest-cov pytest-asyncio
-        # Install additional dependencies needed for testing
         pip install torch --index-url https://download.pytorch.org/whl/cpu
         pip install transformers sentence-transformers fastapi uvicorn python-multipart
     
@@ -46,17 +45,34 @@ jobs:
         else
           pytest --cov=. --cov-report=xml --cov-report=term -v
         fi
-
     
     - name: Upload backend coverage to Codecov
+      if: always()
       uses: codecov/codecov-action@v3
       with:
         token: ${{ secrets.CODECOV_TOKEN }}
         files: ./proj2/backend/coverage.xml
         flags: backend
         name: backend-coverage
-        fail_ci_if_error: true
-        verbose: true
+    
+    - name: Extract backend coverage
+      id: backend-coverage
+      working-directory: ./proj2/backend
+      run: |
+        if [ -f coverage.xml ]; then
+          COVERAGE=$(python -c "import xml.etree.ElementTree as ET; tree = ET.parse('coverage.xml'); root = tree.getroot(); print(round(float(root.attrib['line-rate']) * 100, 1))")
+          echo "percentage=$COVERAGE" >> $GITHUB_OUTPUT
+          echo "### ✅ Backend Coverage: $COVERAGE%" >> $GITHUB_STEP_SUMMARY
+        fi
+    
+    - name: Comment backend coverage on PR
+      if: github.event_name == 'pull_request'
+      uses: marocchino/sticky-pull-request-comment@v2
+      with:
+        header: backend-coverage
+        message: |
+          ## 🐍 Backend Test Coverage
+          **Coverage:** ${{ steps.backend-coverage.outputs.percentage }}%
 
   frontend-tests:
     name: Frontend Tests (React + Vitest)
@@ -88,12 +104,32 @@ jobs:
         fi
     
     - name: Upload frontend coverage to Codecov
+      if: always()
       uses: codecov/codecov-action@v3
       with:
-        files: ./proj2/frontend/coverage/coverage-final.json
+        token: ${{ secrets.CODECOV_TOKEN }}
+        files: ./proj2/frontend/coverage/lcov.info
         flags: frontend
         name: frontend-coverage
-        fail_ci_if_error: false
+    
+    - name: Extract frontend coverage
+      id: frontend-coverage
+      working-directory: ./proj2/frontend
+      run: |
+        if [ -f coverage/coverage-summary.json ]; then
+          COVERAGE=$(node -e "const fs=require('fs'); const cov=JSON.parse(fs.readFileSync('coverage/coverage-summary.json')); console.log(cov.total.lines.pct);")
+          echo "percentage=$COVERAGE" >> $GITHUB_OUTPUT
+          echo "### ✅ Frontend Coverage: $COVERAGE%" >> $GITHUB_STEP_SUMMARY
+        fi
+    
+    - name: Comment frontend coverage on PR
+      if: github.event_name == 'pull_request'
+      uses: marocchino/sticky-pull-request-comment@v2
+      with:
+        header: frontend-coverage
+        message: |
+          ## ⚛️ Frontend Test Coverage
+          **Coverage:** ${{ steps.frontend-coverage.outputs.percentage }}%
 
   all-tests:
     name: All Tests Status
