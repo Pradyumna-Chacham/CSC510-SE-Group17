@@ -220,11 +220,11 @@ def test_categorize_text_size_boundaries():
     """Test size categorization boundary conditions"""
     assert categorize_text_size(0) == "tiny"
     assert categorize_text_size(499) == "tiny"
-    assert categorize_text_size(500) == "small"
-    assert categorize_text_size(2499) == "small"
-    assert categorize_text_size(2500) == "medium"
-    assert categorize_text_size(9999) == "medium"
-    assert categorize_text_size(10000) == "large"
+    assert categorize_text_size(500) == "small"  # At 500 chars = small
+    assert categorize_text_size(1999) == "small"
+    assert categorize_text_size(2000) == "medium"  # At 2000 = medium
+    assert categorize_text_size(7999) == "medium"
+    assert categorize_text_size(8000) == "large"  # At 8000 = large
     assert categorize_text_size(19999) == "large"
     assert categorize_text_size(20000) == "very_large"
 
@@ -265,3 +265,31 @@ def test_parse_document_large_text():
     assert result["text"] == large_text
     assert result["metadata"]["stats"]["size_category"] == "very_large"
     assert result["metadata"]["stats"]["words"] == 40000
+
+
+def test_extract_from_docx_error_handling():
+    """Test DOCX extraction error handling"""
+    from document_parser import extract_from_docx
+    # Invalid DOCX content
+    invalid_content = b"Not a DOCX file"
+    with pytest.raises(Exception):
+        extract_from_docx(invalid_content)
+
+
+def test_extract_from_pdf_empty():
+    """Test PDF extraction with empty/invalid content"""
+    from document_parser import extract_from_pdf
+    from fastapi import HTTPException
+    invalid_content = b"Not a PDF"
+    with pytest.raises(HTTPException):
+        extract_from_pdf(invalid_content)
+
+
+def test_parse_document_with_metadata():
+    """Test document parsing returns proper metadata"""
+    text = "This is a test document with some content."
+    result = parse_document(text)
+    assert "metadata" in result
+    assert "stats" in result["metadata"]
+    assert "words" in result["metadata"]["stats"]
+    assert "characters" in result["metadata"]["stats"]

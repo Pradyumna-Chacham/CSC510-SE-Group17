@@ -323,3 +323,14 @@ def test_export_to_markdown_multiple_use_cases(sample_use_case, sample_session_c
     result = export_to_markdown([sample_use_case, use_case2], sample_session_context, "test_session")
     assert os.path.exists(result)
     os.remove(result)
+
+
+def test_export_to_html(sample_use_case, sample_session_context):
+    """Test HTML export functionality"""
+    from export_utils import export_to_html
+    use_cases = [sample_use_case]
+    result = export_to_html(use_cases)
+    assert isinstance(result, str)
+    assert "<html" in result
+    assert sample_use_case["title"] in result
+    assert "<!DOCTYPE html>" in result

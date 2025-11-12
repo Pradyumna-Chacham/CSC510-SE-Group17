@@ -338,3 +338,13 @@ def test_semantic_chunk_with_sentences():
     assert len(chunks) >= 1
     combined = " ".join(chunks)
     assert "First sentence" in combined or "sentence" in combined.lower()
+
+
+def test_extract_key_concepts():
+    """Test key concept extraction from text"""
+    from rag_utils import extract_key_concepts
+    text = "User authentication system login logout registration password security"
+    concepts = extract_key_concepts(text, top_n=5)
+    assert isinstance(concepts, list)
+    assert len(concepts) <= 5
+    assert all(isinstance(c, str) for c in concepts)
