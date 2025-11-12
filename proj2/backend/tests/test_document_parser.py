@@ -183,3 +183,85 @@ def test_extract_from_docx():
 
     except ImportError:
         pytest.skip("python-docx not installed")
+
+
+def test_parse_document_with_metadata():
+    """Test parse_document includes proper metadata"""
+    text = "Test document" * 100  # Make it a bit larger
+    result = parse_document(text)
+    
+    assert result["metadata"]["format"] == "text"
+    assert result["metadata"]["version"] == "1.0"
+    assert "stats" in result["metadata"]
+    assert result["metadata"]["stats"]["characters"] > 0
+    assert result["metadata"]["stats"]["words"] > 0
+
+
+def test_get_text_stats_edge_cases():
+    """Test text stats with edge cases"""
+    # Empty text
+    empty_stats = get_text_stats("")
+    assert empty_stats["characters"] == 0
+    assert empty_stats["words"] == 0
+    assert empty_stats["lines"] == 1  # Empty string has 1 line
+    
+    # Single word
+    single_stats = get_text_stats("word")
+    assert single_stats["words"] == 1
+    
+    # Multiple spaces and newlines
+    complex_text = "word1   word2\n\n\nword3"
+    complex_stats = get_text_stats(complex_text)
+    assert complex_stats["words"] == 3
+    assert complex_stats["lines"] == 4
+
+
+def test_categorize_text_size_boundaries():
+    """Test size categorization boundary conditions"""
+    assert categorize_text_size(0) == "tiny"
+    assert categorize_text_size(499) == "tiny"
+    assert categorize_text_size(500) == "small"
+    assert categorize_text_size(2499) == "small"
+    assert categorize_text_size(2500) == "medium"
+    assert categorize_text_size(9999) == "medium"
+    assert categorize_text_size(10000) == "large"
+    assert categorize_text_size(19999) == "large"
+    assert categorize_text_size(20000) == "very_large"
+
+
+def test_extract_from_text_encoding():
+    """Test text extraction with various encodings"""
+    # UTF-8 with special characters
+    utf8_text = "Café résumé naïve".encode("utf-8")
+    result = extract_from_text(utf8_text)
+    assert "Café" in result
+    assert "résumé" in result
+    
+    # ASCII text
+    ascii_text = b"Simple ASCII text"
+    result = extract_from_text(ascii_text)
+    assert result == "Simple ASCII text"
+
+
+def test_validate_file_size_boundary():
+    """Test file size validation at exact boundary"""
+    # Exactly 1MB (within limit)
+    content_1mb = b"x" * (1 * 1024 * 1024)
+    file_1mb = MockFile("1mb.txt", content_1mb)
+    validate_file_size(file_1mb(), max_size_mb=1)  # Should not raise
+    
+    # Just over 1MB
+    content_over = b"x" * (1 * 1024 * 1024 + 1)
+    file_over = MockFile("over.txt", content_over)
+    with pytest.raises(HTTPException):
+        validate_file_size(file_over(), max_size_mb=1)
+
+
+def test_parse_document_large_text():
+    """Test parsing very large documents"""
+    large_text = "This is a sentence. " * 10000  # ~200KB
+    result = parse_document(large_text)
+    
+    assert result["text"] == large_text
+    assert result["metadata"]["stats"]["size_category"] == "very_large"
+    assert result["metadata"]["stats"]["words"] == 40000

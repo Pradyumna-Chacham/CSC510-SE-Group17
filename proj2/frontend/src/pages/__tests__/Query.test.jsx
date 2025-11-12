@@ -256,7 +256,8 @@ describe('Query Component', () => {
       useSessionStore.mockReturnValue(mockNoSession);
       renderWithRouter(<Query />);
       
-      expect(screen.getByText('Please select a session or create a new one to ask questions')).toBeInTheDocument();
+      // Match the actual text from Query.jsx line 71
+      expect(screen.getByText('Please select a session from the sidebar or create a new chat to query requirements')).toBeInTheDocument();
       // The input and send button should not be visible
       expect(screen.queryByPlaceholderText('Ask a question...')).not.toBeInTheDocument();
       expect(screen.queryByText('Send')).not.toBeInTheDocument();

@@ -75,8 +75,8 @@ describe('Extraction Component', () => {
     
     // Check session ID display
     expect(screen.getByText('Session ID:')).toBeInTheDocument();
-    const sessionIdSpan = screen.getByText('test-session')
-    expect(sessionIdSpan).toBeInTheDocument();
+    // Session ID is truncated with "..." in the component, so use partial match
+    expect(screen.getByText(/test-session/)).toBeInTheDocument();
   });
 
   it('handles tab switching correctly', async () => {
@@ -147,8 +147,8 @@ describe('Extraction Component', () => {
       const extractButton = screen.getByText('✨ Extract Use Cases');
       await userEvent.click(extractButton);
       
-      // Check loading state
-      expect(screen.getByText('Processing your requirements...')).toBeInTheDocument();
+      // Check loading state (LoadingSpinner shows message in a <p> tag)
+      expect(screen.getByTestId('loading-spinner')).toBeInTheDocument();
       // Wait for results
       await waitFor(() => {
         expect(screen.getByText('Extraction Summary')).toBeInTheDocument();

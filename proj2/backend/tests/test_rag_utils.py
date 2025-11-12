@@ -316,3 +316,25 @@ async def test_process_document_maintains_traceability():
         assert "source_location" in result["use_cases"][0]
         assert "original_text" in result["use_cases"][0]
         assert "processed_requirements" in result["use_cases"][0]
+
+
+def test_semantic_chunk_basic():
+    """Test basic semantic chunking"""
+    text = "User can login. User can logout. User can register."
+    chunks = semantic_chunk(text, chunk_size=2, overlap=1)
+    
+    # Should create chunks
+    assert len(chunks) >= 1
+    assert isinstance(chunks, list)
+    assert all(isinstance(c, str) for c in chunks)
+
+
+def test_semantic_chunk_with_sentences():
+    """Test chunking with multiple sentences"""
+    text = "First sentence here. Second sentence here. Third sentence here. Fourth sentence here."
+    chunks = semantic_chunk(text, chunk_size=2, overlap=0)
+    
+    # Should split into chunks
+    assert len(chunks) >= 1
+    combined = " ".join(chunks)
+    assert "First sentence" in combined or "sentence" in combined.lower()

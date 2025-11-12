@@ -318,3 +318,153 @@ def test_update_session_with_title(test_db):
     conn.close()
 
     assert current_title == updated_title
+
+
+def test_get_session_title(test_db):
+    """Test getting session title"""
+    from db import get_session_title
+    
+    session_id = "test_get_title"
+    title = "My Test Session"
+    
+    # Create session with title
+    create_session(session_id, session_title=title)
+    
+    # Get title
+    retrieved_title = get_session_title(session_id)
+    assert retrieved_title == title
+    
+    # Test non-existent session
+    none_title = get_session_title("nonexistent")
+    assert none_title is None
+
+
+def test_clean_new_session_titles(test_db):
+    """Test cleaning 'New Session' titles"""
+    from db import clean_new_session_titles
+    
+    # Create sessions with and without "New Session" title
+    create_session("session1", session_title="New Session")
+    create_session("session2", session_title="Regular Title")
+    create_session("session3", session_title="New Session")
+    
+    # Clean new session titles
+    clean_new_session_titles()
+    
+    # Verify "New Session" titles were removed
+    from db import get_session_title
+    title1 = get_session_title("session1")
+    title2 = get_session_title("session2")
+    title3 = get_session_title("session3")
+    
+    # New Session titles should be None or empty
+    assert title1 is None or title1 == ""
+    assert title2 == "Regular Title"
+    assert title3 is None or title3 == ""
+
+
+def test_add_conversation_with_attachments(test_db):
+    """Test adding conversation messages with attachments"""
+    session_id = "test_attachments"
+    create_session(session_id)
+    
+    # Add message with attachments
+    add_conversation_message(
+        session_id=session_id,
+        role="user",
+        content="Check this file",
+        attachments=["file1.pdf", "file2.docx"]
+    )
+    
+    # Retrieve and verify
+    history = get_conversation_history(session_id)
+    assert len(history) == 1
+    assert history[0]["role"] == "user"
+    assert history[0]["content"] == "Check this file"
+    # Attachments stored as JSON string
+    import json
+    attachments = json.loads(history[0]["attachments"]) if history[0]["attachments"] else []
+    assert len(attachments) == 2
+    assert "file1.pdf" in attachments
+
+
+def test_get_use_case_by_id_not_found(test_db):
+    """Test getting non-existent use case"""
+    result = get_use_case_by_id(99999)
+    assert result is None
+
+
+def test_update_use_case_invalid_id(test_db):
+    """Test updating non-existent use case"""
+    result = update_use_case(99999, {"title": "Updated"})
+    assert result is False
+
+
+def test_session_summary_workflow(test_db):
+    """Test complete session summary workflow"""
+    session_id = "test_summary_workflow"
+    create_session(session_id)
+    
+    # Add first summary
+    add_session_summary(
+        session_id=session_id,
+        summary="First summary",
+        key_concepts=["concept1", "concept2"]
+    )
+    
+    # Add second summary (should replace first)
+    add_session_summary(
+        session_id=session_id,
+        summary="Second summary",
+        key_concepts=["concept3", "concept4"]
+    )
+    
+    # Get latest
+    latest = get_latest_summary(session_id)
+    assert latest is not None
+    assert latest["summary"] == "Second summary"
+    assert len(latest["key_concepts"]) == 2
+    assert "concept3" in latest["key_concepts"]
+
+
+def test_get_conversation_history_with_limit(test_db):
+    """Test conversation history with different limits"""
+    session_id = "test_history_limit"
+    create_session(session_id)
+    
+    # Add multiple messages
+    for i in range(10):
+        add_conversation_message(session_id, "user", f"Message {i}")
+    
+    # Get with limit
+    history_5 = get_conversation_history(session_id, limit=5)
+    assert len(history_5) == 5
+    
+    # Get all
+    history_all = get_conversation_history(session_id, limit=100)
+    assert len(history_all) == 10
+    
+    # Messages should be in chronological order (oldest first)
+    assert "Message 0" in history_all[0]["content"]
+    assert "Message 9" in history_all[-1]["content"]
+
+
+def test_update_session_context_all_fields(test_db):
+    """Test updating all session context fields"""
+    session_id = "test_full_update"
+    create_session(session_id)
+    
+    # Update all fields
+    update_session_context(
+        session_id=session_id,
+        project_context="Updated Project",
+        domain="Updated Domain",
+        session_title="Updated Title"
+    )
+    
+    # Verify all updates
+    context = get_session_context(session_id)
+    assert context is not None
+    assert context["project_context"] == "Updated Project"
+    assert context["domain"] == "Updated Domain"
+    assert context["session_title"] == "Updated Title"
