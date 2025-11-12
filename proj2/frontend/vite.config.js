@@ -18,9 +18,12 @@ export default defineConfig({
     globals: true,
     environment: 'jsdom',
     setupFiles: './src/setupTests.js',
+    passWithNoTests: true,
     coverage: { 
       provider: 'v8',
-      reporter: ['text', 'html'],
+      reporter: ['text', 'html', 'json', 'lcov'],
+      all: true,
+      reportOnFailure: true,
       exclude: [
         'node_modules/',
         'src/setupTests.js',
