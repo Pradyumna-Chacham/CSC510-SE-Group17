@@ -237,7 +237,6 @@ def test_export_to_docx(sample_use_case, sample_session_context):
         pass
 
 
-@pytest.mark.skip(reason="Requires external filesystem access")
 def test_export_to_markdown(sample_use_case, sample_session_context):
     use_cases = [sample_use_case]
     result = export_to_format(use_cases, "markdown")
@@ -252,3 +251,75 @@ def test_export_to_markdown(sample_use_case, sample_session_context):
         os.remove(result["export_path"])
     except:
         pass
+
+
+def test_export_to_docx_without_session_context(sample_use_case):
+    """Test DOCX export without session context"""
+    from export_utils import export_to_docx
+    use_cases = [sample_use_case]
+    result = export_to_docx(use_cases, None, "test_session")
+    assert os.path.exists(result)
+    os.remove(result)
+
+
+def test_export_to_markdown_without_session_context(sample_use_case):
+    """Test Markdown export without session context"""
+    from export_utils import export_to_markdown
+    use_cases = [sample_use_case]
+    result = export_to_markdown(use_cases, None, "test_session")
+    assert os.path.exists(result)
+    os.remove(result)
+
+
+def test_export_to_docx_with_empty_fields(sample_session_context):
+    """Test DOCX export with use case having empty fields"""
+    from export_utils import export_to_docx
+    use_case = {
+        "id": "UC_EMPTY",
+        "title": "Empty Use Case",
+        "preconditions": [],
+        "main_flow": [],
+        "sub_flows": [],
+        "alternate_flows": []
+    }
+    result = export_to_docx([use_case], sample_session_context, "test_session")
+    assert os.path.exists(result)
+    os.remove(result)
+
+
+def test_export_to_markdown_with_empty_fields(sample_session_context):
+    """Test Markdown export with use case having empty fields"""
+    from export_utils import export_to_markdown
+    use_case = {
+        "id": "UC_EMPTY",
+        "title": "Empty Use Case",
+        "preconditions": [],
+        "main_flow": [],
+        "sub_flows": [],
+        "alternate_flows": []
+    }
+    result = export_to_markdown([use_case], sample_session_context, "test_session")
+    assert os.path.exists(result)
+    os.remove(result)
+
+
+def test_export_to_docx_multiple_use_cases(sample_use_case, sample_session_context):
+    """Test DOCX export with multiple use cases"""
+    from export_utils import export_to_docx
+    use_case2 = sample_use_case.copy()
+    use_case2["id"] = "UC_002"
+    use_case2["title"] = "Second Use Case"
+    result = export_to_docx([sample_use_case, use_case2], sample_session_context, "test_session")
+    assert os.path.exists(result)
+    os.remove(result)
+
+
+def test_export_to_markdown_multiple_use_cases(sample_use_case, sample_session_context):
+    """Test Markdown export with multiple use cases"""
+    from export_utils import export_to_markdown
+    use_case2 = sample_use_case.copy()
+    use_case2["id"] = "UC_002"
+    use_case2["title"] = "Second Use Case"
+    result = export_to_markdown([sample_use_case, use_case2], sample_session_context, "test_session")
+    assert os.path.exists(result)
+    os.remove(result)
