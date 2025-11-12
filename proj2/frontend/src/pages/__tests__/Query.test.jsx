@@ -1,6 +1,7 @@
 import React from 'react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { MemoryRouter } from 'react-router-dom';
 import userEvent from '@testing-library/user-event';
 import Query from '../Query';
 import { api } from '../../api/client';
@@ -38,21 +39,25 @@ describe('Query Component', () => {
     vi.clearAllMocks();
   });
 
+  const renderWithRouter = (component) => {
+    return render(<MemoryRouter>{component}</MemoryRouter>);
+  };
+
   describe('Session Validation', () => {
     it('shows warning when no session is selected', () => {
       useSessionStore.mockReturnValue(mockNoSession);
       
-      render(<Query />);
+      renderWithRouter(<Query />);
       
-      expect(screen.getByText('Please select a session or create a new one to ask questions')).toBeInTheDocument();
+      expect(screen.getByText(/Please select a session from the sidebar or create a new chat/i)).toBeInTheDocument();
     });
 
     it('renders query interface when session is selected', () => {
       useSessionStore.mockReturnValue(mockSession);
       
-      render(<Query />);
+      renderWithRouter(<Query />);
       
-      expect(screen.getByText('Query Requirements 💬')).toBeInTheDocument();
+      // Should have input and send button
       expect(screen.getByPlaceholderText('Ask a question...')).toBeInTheDocument();
       expect(screen.getByText('Send')).toBeInTheDocument();
     });
@@ -64,7 +69,7 @@ describe('Query Component', () => {
     });
 
     it('handles question input', async () => {
-      render(<Query />);
+      renderWithRouter(<Query />);
       
       const input = screen.getByPlaceholderText('Ask a question...');
       await userEvent.type(input, 'What are the main actors?');
@@ -73,14 +78,14 @@ describe('Query Component', () => {
     });
 
     it('disables send button when input is empty', () => {
-      render(<Query />);
+      renderWithRouter(<Query />);
       
       const sendButton = screen.getByText('Send');
       expect(sendButton).toBeDisabled();
     });
 
     it('enables send button when input has content', async () => {
-      render(<Query />);
+      renderWithRouter(<Query />);
       
       const input = screen.getByPlaceholderText('Ask a question...');
       await userEvent.type(input, 'Test question');
@@ -94,7 +99,7 @@ describe('Query Component', () => {
         data: { answer: 'Test answer', relevant_use_cases: [] }
       });
       
-      render(<Query />);
+      renderWithRouter(<Query />);
       
       const input = screen.getByPlaceholderText('Ask a question...');
       await userEvent.type(input, 'Test question{enter}');
@@ -110,7 +115,7 @@ describe('Query Component', () => {
         data: { answer: 'Test answer', relevant_use_cases: [] }
       });
       
-      render(<Query />);
+      renderWithRouter(<Query />);
       
       const input = screen.getByPlaceholderText('Ask a question...');
       await userEvent.type(input, 'Test question');
@@ -128,7 +133,7 @@ describe('Query Component', () => {
     });
 
     it('shows empty state when no messages', () => {
-      render(<Query />);
+      renderWithRouter(<Query />);
       
       expect(screen.getByText('Ask questions about your requirements')).toBeInTheDocument();
       expect(screen.getByText(/Example:/)).toBeInTheDocument();
@@ -139,7 +144,7 @@ describe('Query Component', () => {
         data: { answer: 'Test answer', relevant_use_cases: ['UC1', 'UC2'] }
       });
       
-      render(<Query />);
+      renderWithRouter(<Query />);
       
       const input = screen.getByPlaceholderText('Ask a question...');
       await userEvent.type(input, 'Test question');
@@ -161,7 +166,7 @@ describe('Query Component', () => {
         }
       });
       
-      render(<Query />);
+      renderWithRouter(<Query />);
       
       await userEvent.type(screen.getByPlaceholderText('Ask a question...'), 'Test');
       fireEvent.click(screen.getByText('Send'));
@@ -182,7 +187,7 @@ describe('Query Component', () => {
     it('shows loading state while fetching answer', async () => {
       api.queryRequirements.mockImplementationOnce(() => new Promise(resolve => setTimeout(resolve, 100)));
       
-      render(<Query />);
+      renderWithRouter(<Query />);
       
       await userEvent.type(screen.getByPlaceholderText('Ask a question...'), 'Test');
       fireEvent.click(screen.getByText('Send'));
@@ -200,7 +205,7 @@ describe('Query Component', () => {
     it('handles API errors', async () => {
       api.queryRequirements.mockRejectedValueOnce(new Error('API Error'));
       
-      render(<Query />);
+      renderWithRouter(<Query />);
       
       await userEvent.type(screen.getByPlaceholderText('Ask a question...'), 'Test');
       fireEvent.click(screen.getByText('Send'));
@@ -213,7 +218,7 @@ describe('Query Component', () => {
     it('removes user message on API error', async () => {
       api.queryRequirements.mockRejectedValueOnce(new Error('API Error'));
       
-      render(<Query />);
+      renderWithRouter(<Query />);
       
       await userEvent.type(screen.getByPlaceholderText('Ask a question...'), 'Test question');
       fireEvent.click(screen.getByText('Send'));
@@ -230,7 +235,7 @@ describe('Query Component', () => {
     });
 
     it('prevents submission of empty questions', async () => {
-      render(<Query />);
+      renderWithRouter(<Query />);
       
       fireEvent.click(screen.getByText('Send'));
       
@@ -238,7 +243,7 @@ describe('Query Component', () => {
     });
 
     it('disables button with whitespace-only questions', async () => {
-      render(<Query />);
+      renderWithRouter(<Query />);
       
       await userEvent.type(screen.getByPlaceholderText('Ask a question...'), '   ');
       const sendButton = screen.getByText('Send');
@@ -249,7 +254,7 @@ describe('Query Component', () => {
 
     it('requires session selection', () => {
       useSessionStore.mockReturnValue(mockNoSession);
-      render(<Query />);
+      renderWithRouter(<Query />);
       
       expect(screen.getByText('Please select a session or create a new one to ask questions')).toBeInTheDocument();
       // The input and send button should not be visible
