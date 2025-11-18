@@ -1,0 +1,86 @@
+{% extends "base.html" %}
+{% block title %}Manage Menu Items{% endblock %}
+{% block content %}
+<h2>Menu Management</h2>
+<p>Manage all menu items - add, edit, or remove items from the menu.</p>
+
+<div style="margin: 20px 0;">
+  <a href="{{ url_for('menu.create_item_form') }}" class="admin-links" style="text-decoration:none; background: var(--primary-color); color: white; padding: 12px 20px; border-radius: 6px; display: inline-block; font-weight: bold;">
+    + Add New Menu Item
+  </a>
+</div>
+
+{% if items %}
+<table>
+  <thead>
+    <tr>
+      <th>Name</th>
+      <th>Category</th>
+      <th>Price</th>
+      <th>Calories</th>
+      <th>Status</th>
+      <th>Actions</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for item in items %}
+    <tr>
+      <td><strong>{{ item.name }}</strong></td>
+      <td>{{ item.category | capitalize }}</td>
+      <td>${{ "%.2f"|format(item.price) }}</td>
+      <td>{{ item.calories if item.calories else 'N/A' }}</td>
+      <td>
+        <span style="padding: 4px 10px; border-radius: 4px; font-size: 0.9em; font-weight: bold; 
+                     {% if item.is_available %}background: var(--success-bg); color: var(--success-text);
+                     {% else %}background: var(--error-bg); color: var(--error-text);{% endif %}">
+          {{ 'Available' if item.is_available else 'Unavailable' }}
+        </span>
+        {% if item.is_healthy_choice %}
+        <span style="padding: 4px 10px; border-radius: 4px; font-size: 0.9em; background: #d1f2eb; color: #0c5460; font-weight: bold; margin-left: 5px;">
+          💚 Healthy
+        </span>
+        {% endif %}
+      </td>
+      <td>
+        <div style="display: flex; gap: 8px; flex-wrap: wrap; align-items: center;">
+          <!-- Edit Button -->
+          <a href="{{ url_for('menu.edit_item_form', item_id=item.id) }}" 
+             style="padding: 8px 12px; background: var(--secondary-color); color: white; text-decoration: none; border-radius: 4px; font-size: 0.9em;">
+            Edit
+          </a>
+
+          <!-- Toggle Availability -->
+          <form method="POST" action="{{ url_for('menu.toggle_availability', item_id=item.id) }}" style="display: inline;">
+            <button type="submit" style="padding: 8px 12px; margin-top: 0; font-size: 0.9em; background: {% if item.is_available %}#95a5a6{% else %}#27ae60{% endif %}; color: white;">
+              {{ 'Mark Unavailable' if item.is_available else 'Mark Available' }}
+            </button>
+          </form>
+
+          <!-- Toggle Healthy -->
+          <form method="POST" action="{{ url_for('menu.toggle_healthy', item_id=item.id) }}" style="display: inline;">
+            <button type="submit" style="padding: 8px 12px; margin-top: 0; font-size: 0.9em; background: #16a085; color: white;">
+              {{ 'Remove Healthy' if item.is_healthy_choice else 'Mark Healthy' }}
+            </button>
+          </form>
+
+          <!-- Delete Button (Admin Only) -->
+          {% if current_user.role == 'admin' %}
+          <form method="POST" action="{{ url_for('menu.delete_item', item_id=item.id) }}" 
+                onsubmit="return confirm('Are you sure you want to delete {{ item.name }}?');" style="display: inline;">
+            <button type="submit" name="delete_item" style="padding: 8px 12px; margin-top: 0; font-size: 0.9em;">
+              Delete
+            </button>
+          </form>
+          {% endif %}
+        </div>
+      </td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% else %}
+<p style="text-align: center; color: #999; margin-top: 40px; font-size: 1.1em;">
+  No menu items yet. Click "Add New Menu Item" to get started!
+</p>
+{% endif %}
+{% endblock %}

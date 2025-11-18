@@ -1,0 +1,21 @@
+# This is a TOML file, the standard for Python project configuration.
+
+# Configuration for the "black" formatter
+[tool.black]
+line-length = 88
+target-version = ['py310']
+
+# Configuration for the "ruff" linter
+[tool.ruff]
+# Set the maximum line length to match black
+line-length = 88
+target-version = 'py38'
+
+[tool.ruff.lint]
+# This tells ruff to enable all the standard rules (like flake8)
+select = ["E", "F", "W"]
+
+# Add any error codes you want to ignore here.
+# For example, to ignore "unused variable", you would add "F841".
+# Since you're fixing them, you can leave this empty for now.
+ignore = []

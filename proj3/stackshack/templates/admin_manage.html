@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+{% block title %}Manage Users{% endblock %}
+{% block content %}
+<h2>Manage Users</h2>
+<table>
+  <thead>
+    <tr><th>ID</th><th>Username</th><th>Role</th><th>Actions</th></tr>
+  </thead>
+  <tbody>
+    {% for user in users %}
+    <tr>
+      <td>{{ user.id }}</td>
+      <td>{{ user.username }}</td>
+      <td><strong>{{ user.role | upper }}</strong></td>
+      <td>
+        {% if user.username != current_user.username %}
+        <div style="display: flex; gap: 8px; flex-wrap: wrap; align-items: center;">
+          <form method="POST" style="display: flex; gap: 5px;">
+            <input type="hidden" name="user_id" value="{{ user.id }}">
+            <select name="role" style="padding: 8px; border-radius: 4px; border: 1px solid #ccc; height: 38px;">
+              <option value="customer" {% if user.role == 'customer' %}selected{% endif %}>Customer</option>
+              <option value="staff" {% if user.role == 'staff' %}selected{% endif %}>Staff</option>
+              <option value="admin" {% if user.role == 'admin' %}selected{% endif %}>Admin</option>
+            </select>
+            <button name="update_role" style="padding: 8px 12px; margin-top: 0;">Update Role</button>
+          </form>
+
+          <form method="POST">
+            <input type="hidden" name="user_id" value="{{ user.id }}">
+            <button name="delete_user" style="padding: 8px 12px; margin-top: 0;">Delete</button>
+          </form>
+        </div>
+        {% else %}
+          (You)
+        {% endif %}
+      </td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% endblock %}

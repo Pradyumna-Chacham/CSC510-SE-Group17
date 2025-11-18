@@ -1,0 +1,749 @@
+{% extends "base.html" %}
+{% block title %}Create Burger{% endblock %}
+
+{% block content %}
+<div class="burger-builder">
+  <!-- LEFT: Burger Visualization -->
+  <div class="burger-visual">
+    <div class="burger-stack" id="burger-stack">
+      <!-- Burger layers will be dynamically generated here -->
+    </div>
+  </div>
+
+  <!-- RIGHT: Ingredient selection -->
+  <div class="ingredient-list">
+    <h3 id="current-category">Select an ingredient</h3>
+    <div id="ingredient-cards"></div>
+    
+    <!-- Total Price Display -->
+    <div id="total-price-container">
+      <div id="total-price">
+        <div class="price-header">Order Summary</div>
+        <div id="price-breakdown"></div>
+        <div class="price-total">Total: $0.00</div>
+      </div>
+      
+      <!-- Place Order Form -->
+      <form id="place-order-form" method="POST" action="{{ url_for('order.place_order') }}">
+        <div id="hidden-inputs"></div>
+        <button type="submit" id="place-order-btn" class="place-order-btn">Place Order</button>
+      </form>
+    </div>
+  </div>
+</div>
+
+<style>
+.burger-builder {
+  display: flex;
+  gap: 50px;
+  align-items: flex-start;
+  margin: 40px;
+}
+.burger-visual {
+  width: 300px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  position: sticky;
+  top: 20px;
+}
+
+.burger-stack {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 100%;
+}
+
+.layer {
+  width: 220px;
+  height: 80px;
+  background-size: cover;
+  background-position: center;
+  margin: 2px 0;
+  transition: transform 0.3s, border 0.3s, opacity 0.3s;
+  border-radius: 10px;
+  cursor: pointer;
+  position: relative;
+  border: 2px solid transparent;
+}
+
+.layer.filled {
+  border: 2px solid transparent;
+}
+
+.layer.empty {
+  background-color: #ffffff;
+  border: 2px dashed var(--primary-color);
+}
+
+.layer:hover { transform: scale(1.05); border-color: var(--primary-color); }
+.layer.active { border: 3px solid var(--primary-color); }
+
+.layer.empty::after {
+  content: attr(data-label);
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  color: #999;
+  font-size: 14px;
+  font-weight: bold;
+  pointer-events: none;
+}
+
+.remove-btn {
+  position: absolute;
+  top: 5px;
+  right: 5px;
+  background: #dc3545;
+  color: white;
+  border: none;
+  border-radius: 50%;
+  width: 25px;
+  height: 25px;
+  cursor: pointer;
+  font-size: 16px;
+  line-height: 1;
+  display: none;
+  z-index: 10;
+}
+
+.layer.filled:hover .remove-btn {
+  display: block;
+}
+
+.ingredient-list { flex: 1; }
+
+#ingredient-cards {
+  min-height: 400px;
+}
+
+.ingredient-card {
+  border: 1px solid #ddd; 
+  padding: 10px; 
+  border-radius: 15px; 
+  margin-bottom: 10px;
+  display: flex; 
+  justify-content: space-between; 
+  align-items: center; 
+  cursor: pointer;
+}
+.ingredient-card:hover { background: #f9f9f9; }
+.ingredient-info { 
+  display: flex; 
+  flex-direction: column; 
+  font-family: Helvetica, sans-serif;
+  flex: 1;
+}
+.ingredient-name { 
+  font-weight: bold; 
+  font-family: "Momo Signature";
+  margin-bottom: 4px;
+  margin-top:6px;
+  margin-left: 15px;
+  text-transform: capitalize;
+}
+.ingredient-price { 
+  color: var(--primary-color); 
+  font-weight: bold; 
+  font-size: x-large;
+  margin-left: 15px;
+  margin-bottom: 4px;
+}
+.ingredient-description {
+  font-size: 0.9em;
+  color: #2a2a2a;
+  margin-left: 15px;
+  text-transform: capitalize;
+}
+.healthy-icon { 
+  width: 30px;
+  height: 30px;
+  margin-top: 4px;
+  margin-left: 15px;
+  margin-bottom: 8px;
+}
+
+.ingredient-actions {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+
+.quantity-control {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.qty-btn {
+  width: 30px;
+  height: 30px;
+  border: 1px solid var(--primary-color);
+  background: white;
+  color: var(--primary-color);
+  border-radius: 4px;
+  cursor: pointer;
+  font-weight: bold;
+  margin-right: 15px;
+}
+
+.qty-btn:hover {
+  background: var(--primary-color);
+  color: white;
+}
+
+.qty-display {
+  text-align: center;
+  font-weight: bold;
+  margin-right: 10px;
+}
+
+.add-btn { 
+  padding: 8px 15px; 
+  background: var(--primary-color); 
+  color: white; 
+  border: none; 
+  border-radius: 4px; 
+  cursor: pointer;
+  white-space: nowrap;
+  margin-right: 20px;
+}
+
+.add-btn:hover {
+  opacity: 0.9;
+}
+
+/* Improved Total Price Styling */
+#total-price-container {
+  margin-top: 30px;
+}
+
+#total-price {
+  background: var(--primary-color);
+  border-radius: 12px;
+  padding: 20px;
+  box-shadow: 0 4px 15px rgba(198, 198, 198, 0.2);
+  color: white;
+}
+
+.price-header {
+  font-size: 1.2em;
+  font-weight: bold;
+  margin-bottom: 15px;
+  text-align: center;
+  border-bottom: 2px solid rgba(255, 255, 255, 0.3);
+  padding-bottom: 10px;
+  font-family: "Momo Signature";
+}
+
+#price-breakdown {
+  font-size: 0.95em;
+  margin-bottom: 15px;
+  line-height: 1.8;
+}
+
+.breakdown-item {
+  display: flex;
+  justify-content: space-between;
+  padding: 5px 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.breakdown-item:last-child {
+  border-bottom: none;
+}
+
+.breakdown-label {
+  text-transform: capitalize;
+  opacity: 0.9;
+}
+
+.breakdown-price {
+  font-weight: bold;
+}
+#current-category {
+  font-family: "Momo Signature", cursive;
+  font-size: 1.8rem;
+  color: var(--primary-color);
+  margin-bottom: 20px;
+  letter-spacing: 1px;
+  text-shadow: 1px 1px 3px rgba(0,0,0,0.1);
+  transition: color 0.3s ease;
+}
+
+#current-category:hover {
+  color: var(--primary-dark);
+}
+.price-total {
+  font-size: 1.4em;
+  font-weight: bold;
+  text-align: center;
+  padding-top: 15px;
+  border-top: 2px solid rgba(255, 255, 255, 0.5);
+  letter-spacing: 1px;
+}
+
+#place-order-form {
+  margin-top: 20px;
+}
+
+.place-order-btn {
+  width: 100%;
+  padding: 15px;
+  background: white;
+  color: var(--primary-color);
+  border: 2px solid var(--primary-color);
+  border-radius: 8px;
+  font-size: 1.1em;
+  font-weight: bold;
+  cursor: pointer;
+  transition: all 0.3s;
+}
+
+.place-order-btn:hover:not(:disabled) {
+  background: var(--primary-color);
+  color: white;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+}
+
+.place-order-btn:disabled {
+  background: #ccc;
+  border-color: #ccc;
+  color: #666;
+  cursor: not-allowed;
+  transform: none;
+}
+</style>
+
+<script>
+const burgerStack = document.getElementById('burger-stack');
+const ingredientCardsDiv = document.getElementById('ingredient-cards');
+const currentCategory = document.getElementById('current-category');
+const priceBreakdownEl = document.getElementById('price-breakdown');
+const priceTotalEl = document.querySelector('.price-total');
+const placeOrderForm = document.getElementById('place-order-form');
+const hiddenInputsDiv = document.getElementById('hidden-inputs');
+const placeOrderBtn = document.getElementById('place-order-btn');
+
+// Track selected ingredients - arrays to support multiple items
+const selectedIngredients = {
+  'bun': [],
+  'sauce': [],
+  'topping': [],
+  'cheese': [],
+  'patty': []
+};
+
+let ingredientQuantities = {};
+let activeCategory = null;
+
+function renderBurger() {
+  burgerStack.innerHTML = '';
+
+  // Top bun
+  if (selectedIngredients['bun'].length > 0) {
+    const bunItem = selectedIngredients['bun'][0].item;
+    const topBunEl = createLayerElement('top-bun', 'bun', bunItem, 'Top Bun');
+    topBunEl.style.backgroundPosition = 'center top';
+    topBunEl.style.backgroundSize = '100% 200%';
+    burgerStack.appendChild(topBunEl);
+  } else {
+    burgerStack.appendChild(createLayerElement('top-bun-empty', 'bun', null, 'Top Bun'));
+  }
+
+  // Sauce
+  selectedIngredients['sauce'].forEach((sauce, idx) => {
+    const sauceEl = createLayerElement(`sauce-${idx}`, 'sauce', sauce.item, 'Sauce');
+    burgerStack.appendChild(sauceEl);
+  });
+  if (selectedIngredients['sauce'].length === 0) {
+    burgerStack.appendChild(createLayerElement('sauce-empty', 'sauce', null, 'Sauce'));
+  }
+
+  // Toppings
+  selectedIngredients['topping'].forEach((topping, idx) => {
+    burgerStack.appendChild(createLayerElement(`topping-${idx}`, 'topping', topping.item, 'Topping'));
+  });
+  if (selectedIngredients['topping'].length === 0) {
+    burgerStack.appendChild(createLayerElement('topping-empty', 'topping', null, 'Topping'));
+  }
+
+  // Cheese
+  selectedIngredients['cheese'].forEach((cheese, idx) => {
+    burgerStack.appendChild(createLayerElement(`cheese-${idx}`, 'cheese', cheese.item, 'Cheese'));
+  });
+  if (selectedIngredients['cheese'].length === 0) {
+    burgerStack.appendChild(createLayerElement('cheese-empty', 'cheese', null, 'Cheese'));
+  }
+
+  // Patty
+  selectedIngredients['patty'].forEach((patty, idx) => {
+    burgerStack.appendChild(createLayerElement(`patty-${idx}`, 'patty', patty.item, 'Patty'));
+  });
+  if (selectedIngredients['patty'].length === 0) {
+    burgerStack.appendChild(createLayerElement('patty-empty', 'patty', null, 'Patty'));
+  }
+
+  // Bottom bun
+  if (selectedIngredients['bun'].length > 0) {
+    const bunItem = selectedIngredients['bun'][0].item;
+    const bottomBunEl = createLayerElement('bottom-bun', 'bun', bunItem, 'Bottom Bun');
+    bottomBunEl.style.backgroundPosition = 'center bottom';
+    bottomBunEl.style.backgroundSize = '100% 200%';
+    burgerStack.appendChild(bottomBunEl);
+  } else {
+    burgerStack.appendChild(createLayerElement('bottom-bun-empty', 'bun', null, 'Bottom Bun'));
+  }
+
+  attachLayerListeners();
+}
+
+function createLayerElement(id, category, item, label) {
+  const layer = document.createElement('div');
+  layer.className = 'layer';
+  layer.id = id;
+  layer.dataset.category = category;
+  layer.dataset.label = label;
+  
+  if (item) {
+    layer.classList.add('filled');
+    layer.style.backgroundImage = `url(${item.image_url})`;
+    
+    // Special handling for buns - crop top and bottom
+    if (category === 'bun') {
+      if (id === 'top-bun') {
+        layer.style.backgroundPosition = 'center top';
+        layer.style.backgroundSize = '100% 200%';
+      } else if (id === 'bottom-bun') {
+        layer.style.backgroundPosition = 'center bottom';
+        layer.style.backgroundSize = '100% 200%';
+      }
+    }
+  
+    const canRemove = true; // All items are now removable
+    
+    if (canRemove) {
+      const removeBtn = document.createElement('button');
+      removeBtn.className = 'remove-btn';
+      removeBtn.innerHTML = '×';
+      removeBtn.onclick = (e) => {
+        e.stopPropagation();
+        removeLayer(id, category);
+      };
+      layer.appendChild(removeBtn);
+    }
+  } else {
+    layer.classList.add('empty');
+  }
+  
+  return layer;
+}
+
+function removeLayer(layerId, category) {
+  // Handle bun removal specially - remove the entire bun (both top and bottom)
+  if (category === 'bun') {
+    selectedIngredients['bun'] = [];
+    renderBurger();
+    updateTotalPrice();
+    
+    // Refresh the ingredient list to update quantities
+    if (activeCategory === 'bun') {
+      loadIngredients('bun');
+    }
+    return;
+  }
+  
+  const index = parseInt(layerId.split('-').pop());
+  if (!isNaN(index)) {
+    const removedItem = selectedIngredients[category][index]?.item;
+    selectedIngredients[category].splice(index, 1);
+
+    // Update ingredient quantity if it exists in tracking
+    if (removedItem && removedItem.id) {
+      const itemId = `${category}-${removedItem.id}`;
+      if (ingredientQuantities[itemId] && ingredientQuantities[itemId] > 0) {
+        ingredientQuantities[itemId]--;
+      }
+    }
+
+    renderBurger();
+    updateTotalPrice();
+    
+    // Refresh the ingredient list to update quantities
+    if (activeCategory === category) {
+      loadIngredients(category);
+    }
+  }
+}
+
+function loadIngredients(category) {
+  fetch(`/orders/ingredients/${category}`)
+    .then(res => res.json())
+    .then(data => {
+      ingredientCardsDiv.innerHTML = '';
+      data.forEach(item => {
+        const itemId = `${category}-${item.id}`;
+        
+        // Calculate current quantity based on selectedIngredients
+        let currentQty = 0;
+        if (category === 'cheese' || category === 'topping' || category === 'patty') {
+          currentQty = selectedIngredients[category].filter(entry => 
+            String(entry.item.id) === String(item.id)
+          ).length;
+        }
+        
+        // Store in ingredientQuantities for display
+        ingredientQuantities[itemId] = currentQty;
+        
+        const card = document.createElement('div');
+        card.className = 'ingredient-card';
+        
+        const showQuantity = category === 'cheese' || category === 'topping' || category === 'patty';
+        
+        card.innerHTML = `
+          <div class="ingredient-info">
+            <span class="ingredient-name">${item.name}</span>
+            <span class="ingredient-description">${item.description}</span>
+            <span class="ingredient-price">$${item.price}</span>
+            ${item.is_healthy ? '<img class="healthy-icon" src="/static/images/healthyicon.png" alt="Healthy">' : ''}
+          </div>
+          <div class="ingredient-actions">
+            ${showQuantity ? `
+              <div class="quantity-control">
+                <button class="qty-btn qty-minus" data-item-id="${itemId}">-</button>
+                <span class="qty-display" data-item-id="${itemId}">${currentQty}</span>
+                <button class="qty-btn qty-plus" data-item-id="${itemId}">+</button>
+              </div>
+            ` : `<button class="add-btn" data-item-id="${itemId}">Add</button>`}
+          </div>
+        `;
+
+        // Quantity controls for cheese, topping, patty
+        if (showQuantity) {
+          const minusBtn = card.querySelector('.qty-minus');
+          const plusBtn = card.querySelector('.qty-plus');
+          const qtyDisplay = card.querySelector('.qty-display');
+          
+          minusBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            if (ingredientQuantities[itemId] > 0) {
+              ingredientQuantities[itemId]--;
+              qtyDisplay.textContent = ingredientQuantities[itemId];
+              updateIngredientQuantity(category, item, itemId);
+            }
+          });
+          
+          plusBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            if (ingredientQuantities[itemId] < 10) {
+              ingredientQuantities[itemId]++;
+              qtyDisplay.textContent = ingredientQuantities[itemId];
+              updateIngredientQuantity(category, item, itemId);
+            }
+          });
+        } else {
+          // Add button for bun and sauce
+          const addBtn = card.querySelector('.add-btn');
+          addBtn.addEventListener('click', () => {
+            addIngredient(category, item, itemId);
+          });
+        }
+
+        ingredientCardsDiv.appendChild(card);
+      });
+    });
+}
+
+function attachLayerListeners() {
+  const layers = document.querySelectorAll('.layer');
+  layers.forEach(layer => {
+    layer.addEventListener('mouseenter', () => {
+      layers.forEach(l => l.classList.remove('active'));
+      layer.classList.add('active');
+      const category = layer.dataset.category;
+      activeCategory = category;
+      currentCategory.textContent = `Choose your ${category}`;
+      loadIngredients(category);
+    });
+  });
+}
+
+function addIngredient(category, item, itemId) {
+  if (item && item.id !== undefined && item.id !== null) item.id = String(item.id);
+
+  if (category === 'bun') {
+    // Update single bun item (used for both top & bottom visuals)
+    selectedIngredients['bun'] = [{ item: item }];
+  } else if (category === 'sauce') {
+    selectedIngredients['sauce'] = [{ item: item }];
+  }
+
+  renderBurger();
+  updateTotalPrice();
+}
+
+function updateIngredientQuantity(category, item, itemId) {
+  if (item && item.id !== undefined && item.id !== null) item.id = String(item.id);
+
+  const quantity = ingredientQuantities[itemId];
+  
+  // Remove ALL instances of this item from the category
+  selectedIngredients[category] = selectedIngredients[category].filter(entry => {
+    const entryId = entry.item && entry.item.id !== undefined && entry.item.id !== null ? String(entry.item.id) : '';
+    return entryId !== String(item.id);
+  });
+
+  // Add the item back 'quantity' times
+  for (let i = 0; i < quantity; i++) {
+    selectedIngredients[category].push({ item: item });
+  }
+
+  renderBurger();
+  updateTotalPrice();
+}
+
+function updateTotalPrice() {
+  let total = 0;
+  let breakdownHTML = '';
+  let itemCounts = {};
+
+  for (const [category, items] of Object.entries(selectedIngredients)) {
+    items.forEach(entry => {
+      if (!entry.item) return;
+
+      const price = Number(entry.item.price);
+      const safePrice = Number.isFinite(price) ? price : 0;
+      const name = entry.item.name || 'Unknown';
+      const itemId = entry.item.id;
+
+      // Count bun only once (shared for top & bottom)
+      if (category === 'bun' && itemCounts['bun']) return;
+
+      if (!itemCounts[name]) {
+        itemCounts[name] = { 
+          count: 0, 
+          price: safePrice,
+          itemId: itemId 
+        };
+      }
+      itemCounts[name].count++;
+      total += safePrice;
+    });
+  }
+
+  // Check if bun and patty are present
+  const hasBun = selectedIngredients['bun'].length > 0;
+  const hasPatty = selectedIngredients['patty'].length > 0;
+  const canPlaceOrder = hasBun && hasPatty;
+
+  if (Object.keys(itemCounts).length > 0) {
+    for (const [name, data] of Object.entries(itemCounts)) {
+      const itemTotal = data.price * data.count;
+      breakdownHTML += `
+        <div class="breakdown-item">
+          <span class="breakdown-label">${name} ${data.count > 1 ? `(x${data.count})` : ''}</span>
+          <span class="breakdown-price">$${itemTotal.toFixed(2)}</span>
+        </div>
+      `;
+    }
+    priceBreakdownEl.innerHTML = breakdownHTML;
+    
+    // Enable button only if bun and patty are present
+    if (canPlaceOrder) {
+      placeOrderBtn.disabled = false;
+      placeOrderBtn.title = '';
+    } else {
+      placeOrderBtn.disabled = true;
+      if (!hasBun && !hasPatty) {
+        placeOrderBtn.title = 'Please add a bun and at least one patty';
+      } else if (!hasBun) {
+        placeOrderBtn.title = 'Please add a bun';
+      } else if (!hasPatty) {
+        placeOrderBtn.title = 'Please add at least one patty';
+      }
+    }
+  } else {
+    priceBreakdownEl.innerHTML = '<div style="text-align: center; opacity: 0.7;">No ingredients added yet</div>';
+    placeOrderBtn.disabled = true;
+    placeOrderBtn.title = 'Please add ingredients to your burger';
+  }
+
+  priceTotalEl.textContent = `Total: $${total.toFixed(2)}`;
+  
+  // Update hidden form inputs
+  updateFormInputs(itemCounts);
+}
+
+function updateFormInputs(itemCounts) {
+  // Clear existing hidden inputs
+  hiddenInputsDiv.innerHTML = '';
+  
+  // Create hidden inputs for each item in the format expected by the backend
+  for (const [name, data] of Object.entries(itemCounts)) {
+    const itemId = data.itemId;
+    
+    // Create hidden inputs: quantity_ID, price_ID, name_ID
+    const quantityInput = document.createElement('input');
+    quantityInput.type = 'hidden';
+    quantityInput.name = `quantity_${itemId}`;
+    quantityInput.value = data.count;
+    hiddenInputsDiv.appendChild(quantityInput);
+    
+    const priceInput = document.createElement('input');
+    priceInput.type = 'hidden';
+    priceInput.name = `price_${itemId}`;
+    priceInput.value = data.price.toFixed(2);
+    hiddenInputsDiv.appendChild(priceInput);
+    
+    const nameInput = document.createElement('input');
+    nameInput.type = 'hidden';
+    nameInput.name = `name_${itemId}`;
+    nameInput.value = name;
+    hiddenInputsDiv.appendChild(nameInput);
+  }
+}
+
+// Form submission handler
+placeOrderForm.addEventListener('submit', function(e) {
+  // Check if bun is present
+  const hasBun = selectedIngredients['bun'].length > 0;
+  const hasPatty = selectedIngredients['patty'].length > 0;
+  
+  if (!hasBun || !hasPatty) {
+    e.preventDefault();
+    let message = 'Cannot place order: ';
+    if (!hasBun && !hasPatty) {
+      message += 'Please add a bun and at least one patty.';
+    } else if (!hasBun) {
+      message += 'Please add a bun.';
+    } else if (!hasPatty) {
+      message += 'Please add at least one patty.';
+    }
+    alert(message);
+    return false;
+  }
+  
+  // Disable button to prevent double submission
+  placeOrderBtn.disabled = true;
+  placeOrderBtn.textContent = 'Placing Order...';
+});
+
+// Initialize burger with empty state
+renderBurger();
+updateTotalPrice();
+
+// Load a default category when the page first loads
+window.addEventListener('DOMContentLoaded', () => {
+  const defaultCategory = 'bun';
+  const defaultLayer = document.querySelector(`[data-category="${defaultCategory}"]`);
+  if (defaultLayer) {
+    defaultLayer.classList.add('active');
+    currentCategory.textContent = `Choose your ${defaultCategory}`;
+    loadIngredients(defaultCategory);
+  }
+});
+</script>
+{% endblock %}
