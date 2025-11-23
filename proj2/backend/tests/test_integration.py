@@ -14,12 +14,22 @@ from rag_utils import extract_use_cases, process_document
 from use_case_enrichment import enrich_use_cases
 from use_case_validator import validate_requirements
 
+# Check if chromadb is available
+try:
+    import chromadb
+    CHROMADB_AVAILABLE = True
+except ImportError:
+    CHROMADB_AVAILABLE = False
+
 
 @pytest_asyncio.fixture
 async def mock_dependencies(monkeypatch):
     """
     Set up common mocks for dependencies used across tests
     """
+    if not CHROMADB_AVAILABLE:
+        pytest.skip("chromadb not installed")
+    
     # Mock ChromaDB
     mock_chroma = MagicMock()
     mock_collection = MagicMock()
