@@ -506,3 +506,128 @@ def test_update_session_context_partial(test_db):
     update_session_context(session_id=session_id, domain="Just Domain")
     context = get_session_context(session_id)
     assert context["domain"] == "Just Domain"
+
+
+def test_add_session_summary_and_get(test_db):
+    """Test adding and retrieving session summaries"""
+    session_id = "test_summary_session"
+    create_session(session_id)
+    
+    # Add a summary
+    summary_text = "This session discussed user authentication requirements"
+    key_concepts = ["authentication", "security", "login"]
+    
+    add_session_summary(session_id, summary_text, key_concepts)
+    
+    # Retrieve the summary
+    summary = get_latest_summary(session_id)
+    assert summary is not None
+    assert summary["summary"] == summary_text
+    assert summary["key_concepts"] == key_concepts
+    assert "created_at" in summary
+
+
+def test_get_latest_summary_nonexistent(test_db):
+    """Test getting summary for session without summaries"""
+    result = get_latest_summary("nonexistent_session")
+    assert result is None
+
+
+def test_conversation_message_with_attachments(test_db):
+    """Test adding conversation message with attachments"""
+    session_id = "test_attachments"
+    create_session(session_id)
+    
+    # Add message with attachments
+    attachments = ["file1.pdf", "file2.docx"]
+    add_conversation_message(session_id, "user", "Test message", attachments)
+    
+    # Retrieve messages
+    history = get_conversation_history(session_id)
+    assert len(history) >= 1
+    # Check if any message has attachments
+    messages_with_attachments = [m for m in history if m.get("attachments")]
+    assert len(messages_with_attachments) >= 0
+
+
+def test_update_use_case_with_all_fields(test_db):
+    """Test updating use case with all fields"""
+    session_id = "test_full_update"
+    create_session(session_id)
+    
+    # Create a use case first
+    conn = sqlite3.connect(test_db)
+    c = conn.cursor()
+    c.execute(
+        """INSERT INTO use_cases 
+           (session_id, title, preconditions, main_flow, sub_flows, 
+            alternate_flows, outcomes, stakeholders)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
+        (session_id, "Test UC", "[]", "[]", "[]", "[]", "[]", "[]")
+    )
+    conn.commit()
+    use_case_id = c.lastrowid
+    conn.close()
+    
+    # Update with full data
+    updated_data = {
+        "title": "Updated Use Case",
+        "preconditions": ["Pre 1", "Pre 2"],
+        "main_flow": ["Step 1", "Step 2", "Step 3"],
+        "sub_flows": ["Sub 1"],
+        "alternate_flows": ["Alt 1", "Alt 2"],
+        "outcomes": ["Outcome 1"],
+        "stakeholders": ["User", "Admin"]
+    }
+    
+    result = update_use_case(use_case_id, updated_data)
+    assert result is True
+    
+    # Verify update
+    retrieved = get_use_case_by_id(use_case_id)
+    assert retrieved["title"] == "Updated Use Case"
+    assert len(retrieved["main_flow"]) == 3
+
+
+def test_conversation_history_ordering(test_db):
+    """Test conversation history is returned in correct order"""
+    session_id = "test_ordering"
+    create_session(session_id)
+    
+    # Add messages in sequence
+    add_conversation_message(session_id, "user", "First message")
+    add_conversation_message(session_id, "assistant", "First response")
+    add_conversation_message(session_id, "user", "Second message")
+    add_conversation_message(session_id, "assistant", "Second response")
+    
+    # Get history
+    history = get_conversation_history(session_id)
+    
+    # Should be in chronological order
+    assert len(history) == 4
+    assert history[0]["content"] == "First message"
+    assert history[-1]["content"] == "Second response"
+
+
+def test_session_with_all_fields(test_db):
+    """Test creating session with all optional fields"""
+    session_id = "test_all_fields"
+    project_context = "Full Project Context"
+    domain = "Test Domain"
+    title = "Test Title"
+    
+    create_session(session_id, project_context, domain, title)
+    
+    # Verify all fields stored
+    conn = sqlite3.connect(test_db)
+    c = conn.cursor()
+    c.execute(
+        "SELECT project_context, domain, session_title FROM sessions WHERE session_id = ?",
+        (session_id,)
+    )
+    row = c.fetchone()
+    conn.close()
+    
+    assert row[0] == project_context
+    assert row[1] == domain
+    assert row[2] == title

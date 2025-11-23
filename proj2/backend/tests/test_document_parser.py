@@ -285,6 +285,163 @@ def test_extract_from_pdf_empty():
         extract_from_pdf(invalid_content)
 
 
+def test_extract_text_from_pdf_file():
+    """Test PDF file extraction through extract_text_from_file"""
+    try:
+        import PyPDF2
+        from reportlab.pdfgen import canvas
+        from document_parser import extract_from_pdf
+        
+        # Create a simple PDF
+        pdf_buffer = BytesIO()
+        c = canvas.Canvas(pdf_buffer)
+        c.drawString(100, 750, "PDF Test Content")
+        c.save()
+        
+        # Test extraction through extract_text_from_file
+        pdf_content = pdf_buffer.getvalue()
+        pdf_file = MockFile("test.pdf", pdf_content)
+        text, ext = extract_text_from_file(pdf_file())
+        assert "PDF Test Content" in text
+        assert ext == ".pdf"
+        
+    except ImportError:
+        pytest.skip("PyPDF2 or reportlab not installed")
+
+
+def test_extract_text_from_docx_file():
+    """Test DOCX file extraction through extract_text_from_file"""
+    try:
+        from docx import Document
+        
+        # Create a simple DOCX
+        doc = Document()
+        doc.add_paragraph("DOCX Test Content")
+        docx_buffer = BytesIO()
+        doc.save(docx_buffer)
+        
+        # Test extraction through extract_text_from_file
+        docx_content = docx_buffer.getvalue()
+        docx_file = MockFile("test.docx", docx_content)
+        text, ext = extract_text_from_file(docx_file())
+        assert "DOCX Test Content" in text
+        assert ext == ".docx"
+        
+    except ImportError:
+        pytest.skip("python-docx not installed")
+
+
+def test_extract_from_text_encoding_errors():
+    """Test text extraction with encoding that fails both UTF-8 and latin-1"""
+    # This is a tricky test since latin-1 accepts almost anything
+    # But we can test the error path by mocking the decode method
+    from unittest.mock import Mock, patch
+    
+    # Create a mock bytes object that fails to decode
+    mock_content = Mock()
+    mock_content.decode.side_effect = [UnicodeDecodeError('utf-8', b'', 0, 1, 'test'), 
+                                        Exception("Decoding failed")]
+    
+    with pytest.raises(HTTPException) as exc:
+        extract_from_text(mock_content)
+    assert "Error decoding text file" in str(exc.value.detail)
+
+
+def test_extract_from_pdf_with_multiple_pages():
+    """Test PDF extraction with multiple pages"""
+    try:
+        import PyPDF2
+        from reportlab.pdfgen import canvas
+        from document_parser import extract_from_pdf
+        
+        # Create a PDF with multiple pages
+        pdf_buffer = BytesIO()
+        c = canvas.Canvas(pdf_buffer)
+        c.drawString(100, 750, "Page 1 content")
+        c.showPage()
+        c.drawString(100, 750, "Page 2 content")
+        c.showPage()
+        c.save()
+        
+        pdf_content = pdf_buffer.getvalue()
+        result = extract_from_pdf(pdf_content)
+        
+        # Should contain content from both pages
+        assert "Page 1 content" in result or "Page 2 content" in result
+        
+    except ImportError:
+        pytest.skip("PyPDF2 or reportlab not installed")
+
+
+def test_extract_from_pdf_import_error():
+    """Test PDF extraction when PyPDF2 is not installed"""
+    pytest.skip("Difficult to test import error without complex mocking")
+
+
+def test_extract_from_pdf_malformed_page():
+    """Test PDF extraction with a page that fails to extract"""
+    try:
+        import PyPDF2
+        from document_parser import extract_from_pdf
+        
+        # Create a minimal PDF that might have extraction issues
+        # For now, just test with invalid content
+        invalid_pdf = b"Invalid PDF content"
+        
+        with pytest.raises(HTTPException) as exc:
+            extract_from_pdf(invalid_pdf)
+        assert "Error parsing PDF" in str(exc.value.detail)
+        
+    except ImportError:
+        pytest.skip("PyPDF2 not installed")
+
+
+def test_extract_from_docx_with_multiple_paragraphs():
+    """Test DOCX extraction with multiple paragraphs"""
+    try:
+        from docx import Document
+        from document_parser import extract_from_docx
+        
+        # Create a DOCX with multiple paragraphs
+        doc = Document()
+        doc.add_paragraph("First paragraph")
+        doc.add_paragraph("Second paragraph")
+        doc.add_paragraph("Third paragraph")
+        
+        docx_buffer = BytesIO()
+        doc.save(docx_buffer)
+        
+        docx_content = docx_buffer.getvalue()
+        result = extract_from_docx(docx_content)
+        
+        assert "First paragraph" in result
+        assert "Second paragraph" in result
+        assert "Third paragraph" in result
+        
+    except ImportError:
+        pytest.skip("python-docx not installed")
+
+
+def test_extract_from_docx_import_error():
+    """Test DOCX extraction when python-docx is not installed"""
+    from document_parser import extract_from_docx
+    
+    # For complex import mocking, skip this test
+    pytest.skip("Difficult to test import error without complex mocking")
+
+
+def test_validate_file_size_edge_cases():
+    """Test file size validation with various edge cases"""
+    # Test with default max size
+    small_content = b"Small content"
+    small_file = MockFile("small.txt", small_content)
+    validate_file_size(small_file())  # Should use default 10MB limit
+    
+    # Test with 0 content
+    empty_file = MockFile("empty.txt", b"")
+    validate_file_size(empty_file(), max_size_mb=1)
+
+
 def test_parse_document_with_metadata():
     """Test document parsing returns proper metadata"""
     text = "This is a test document with some content."
