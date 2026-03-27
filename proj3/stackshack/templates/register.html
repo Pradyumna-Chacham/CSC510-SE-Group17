@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+{% block title %}Customer/User Register{% endblock %}
+{% block content %}
+<h2 style="color: #e67e22">Customer/User Register New Account</h2>
+<form method="POST">
+  <label for="username">Username:</label>
+  <input type="text" id="username" name="username" required>
+  
+  <label for="password">Password:</label>
+  <input type="password" id="password" name="password" required>
+
+  {% if current_user.is_authenticated and current_user.role == 'admin' %}
+  <label for="role">Role:</label>
+  <select name="role" id="role">
+    <option value="customer">Customer</option>
+    <option value="staff">Staff</option>
+    <option value="admin">Admin</option>
+  </select>
+  {% endif %}
+
+  <input type="submit" value="Register Account">
+</form>
+{% endblock %}

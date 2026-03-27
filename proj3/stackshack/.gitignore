@@ -1,0 +1,9 @@
+# .gitignore content
+# Environment/Secrets
+.env
+.DS_Store
+# Python specific
+__pycache__/
+*.pyc
+venv/
+.pytest_cache/

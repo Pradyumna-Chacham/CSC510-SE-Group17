@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+{% block title %}Dashboard{% endblock %}
+{% block content %}
+<h2 style="color: #e67e22; font-family: Momo Signature">Welcome, {{ current_user.username }}!</h2>
+<p >Your Role: <strong>{{ current_user.role | upper }}</strong></p>
+<div class="admin-links" style="margin-top: 20px;">
+    <h3>Order Tools</h3>
+    <p>
+      <a href="{{ url_for('order.order_history') }}" class="admin-links">View Order History</a>
+      <a href="{{ url_for('order.create_order_form') }}" class="admin-links">Create New Order</a>
+    </p>
+</div>
+{% if current_user.role == 'admin' %}
+  <div class="admin-links" style="margin-top: 20px;">
+    <h3>Admin Tools</h3>
+    <p>
+      <a href="{{ url_for('auth.create_user_admin') }}" class="admin-links">Create Staff/Admin</a>
+      <a href="{{ url_for('auth.manage_users') }}" class="admin-links">Manage Users</a>
+      <a href="{{ url_for('menu.view_items') }}" class="admin-links">Manage Menu</a>
+    </p>
+  </div>
+{% elif current_user.role == 'staff' %}
+  <div class="admin-links" style="margin-top: 20px;">
+    <h3>Staff Tools</h3>
+    <p>
+      <a href="{{ url_for('status.manage_orders') }}" class="admin-links">Manage Orders</a>
+      <a href="{{ url_for('menu.view_items') }}" class="admin-links">Manage Menu</a>
+    </p>
+  </div>
+{% endif %}
+{% endblock %}

@@ -1,0 +1,248 @@
+from database.db import db
+from app import create_app
+from models.menu_item import MenuItem
+
+# Create Flask app context
+app = create_app()
+app.app_context().push()
+
+
+def seed_menu_items():
+    """Seed the menu_items table with sample data."""
+
+    menu_data = [
+        {
+            "name": "wheat bun",
+            "category": "bun",
+            "description": "whole wheat healthy",
+            "price": 2.50,
+            "calories": 200,
+            "protein": 15,
+            "is_available": True,
+            "is_healthy_choice": True,
+            "image_url": "/static/images/bun/wheat.jpg",
+        },
+        {
+            "name": "honeywheat bun",
+            "category": "bun",
+            "description": "sweet bun",
+            "price": 2.00,
+            "calories": 100,
+            "protein": 9,
+            "is_available": True,
+            "is_healthy_choice": False,
+            "image_url": "/static/images/bun/honey.jpg",
+        },
+        {
+            "name": "plain bun",
+            "category": "bun",
+            "description": "all purpose flour bun",
+            "price": 4.00,
+            "calories": 300,
+            "protein": 8,
+            "is_available": True,
+            "is_healthy_choice": False,
+            "image_url": "/static/images/bun/plain.jpg",
+        },
+        {
+            "name": "chicken patty",
+            "category": "patty",
+            "description": "crispy chicken",
+            "price": 4.00,
+            "calories": 300,
+            "protein": 20,
+            "is_available": True,
+            "is_healthy_choice": False,
+            "image_url": "/static/images/patty/chicken.jpg",
+        },
+        {
+            "name": "beef patty",
+            "category": "patty",
+            "description": "ground beef meat",
+            "price": 6.00,
+            "calories": 500,
+            "protein": 18,
+            "is_available": True,
+            "is_healthy_choice": True,
+            "image_url": "/static/images/patty/beef.jpg",
+        },
+        {
+            "name": "pork patty",
+            "category": "patty",
+            "description": "pork patty",
+            "price": 5.00,
+            "calories": 250,
+            "protein": 15,
+            "is_available": True,
+            "is_healthy_choice": False,
+            "image_url": "/static/images/patty/pork.png",
+        },
+        {
+            "name": "veg patty",
+            "category": "patty",
+            "description": "fresh veggies patty",
+            "price": 3.00,
+            "calories": 150,
+            "protein": 8,
+            "is_available": True,
+            "is_healthy_choice": False,
+            "image_url": "/static/images/patty/veg.jpg",
+        },
+        {
+            "name": "swiss cheese",
+            "category": "cheese",
+            "description": "fresh swiss cheese slice",
+            "price": 1.00,
+            "calories": 170,
+            "protein": 5,
+            "is_available": True,
+            "is_healthy_choice": True,
+            "image_url": "/static/images/cheese/swiss.jpg",
+        },
+        {
+            "name": "american cheese",
+            "category": "cheese",
+            "description": "fresh american cheese slice",
+            "price": 2.00,
+            "calories": 300,
+            "protein": 4,
+            "is_available": True,
+            "is_healthy_choice": False,
+            "image_url": "/static/images/cheese/american.jpg",
+        },
+        {
+            "name": "parmesan cheese",
+            "category": "cheese",
+            "description": "fresh parmesan cheese slice",
+            "price": 1.50,
+            "calories": 110,
+            "protein": 1,
+            "is_available": True,
+            "is_healthy_choice": False,
+            "image_url": "/static/images/cheese/parmesan.jpg",
+        },
+        {
+            "name": "cheddar cheese",
+            "category": "cheese",
+            "description": "fresh cheddar cheese slice",
+            "price": 3.00,
+            "calories": 370,
+            "protein": 2,
+            "is_available": True,
+            "is_healthy_choice": False,
+            "image_url": "/static/images/cheese/cheddar.jpg",
+        },
+        {
+            "name": "onion",
+            "category": "topping",
+            "description": "onion slice",
+            "price": 0.25,
+            "calories": 50,
+            "protein": 2,
+            "is_available": True,
+            "is_healthy_choice": False,
+            "image_url": "/static/images/topping/onion.png",
+        },
+        {
+            "name": "lettuce",
+            "category": "topping",
+            "description": "fresh lettuce",
+            "price": 0.15,
+            "calories": 20,
+            "protein": 2,
+            "is_available": True,
+            "is_healthy_choice": False,
+            "image_url": "/static/images/topping/lettuce.png",
+        },
+        {
+            "name": "tomato",
+            "category": "topping",
+            "description": "fresh tomato slice",
+            "price": 0.60,
+            "calories": 40,
+            "protein": 3,
+            "is_available": True,
+            "is_healthy_choice": True,
+            "image_url": "/static/images/topping/tomato.jpg",
+        },
+        {
+            "name": "capsicum",
+            "category": "topping",
+            "description": "capsicum slices",
+            "price": 0.25,
+            "calories": 100,
+            "protein": 4,
+            "is_available": True,
+            "is_healthy_choice": False,
+            "image_url": "/static/images/topping/capsicum.png",
+        },
+        {
+            "name": "pickles",
+            "category": "topping",
+            "description": "pickled jalapenos",
+            "price": 0.35,
+            "calories": 45,
+            "protein": 1,
+            "is_available": True,
+            "is_healthy_choice": False,
+            "image_url": "/static/images/topping/pickles.png",
+        },
+        {
+            "name": "tomato sauce",
+            "category": "sauce",
+            "description": "tomato",
+            "price": 0.15,
+            "calories": 50,
+            "protein": 2,
+            "is_available": True,
+            "is_healthy_choice": False,
+            "image_url": "/static/images/sauce/tomato.png",
+        },
+        {
+            "name": "mayo",
+            "category": "sauce",
+            "description": "eggless mayo",
+            "price": 0.15,
+            "calories": 100,
+            "protein": 2,
+            "is_available": True,
+            "is_healthy_choice": False,
+            "image_url": "/static/images/sauce/mayo.png",
+        },
+        {
+            "name": "mustard sauce",
+            "category": "sauce",
+            "description": "mustard sauce",
+            "price": 0.15,
+            "calories": 20,
+            "protein": 1,
+            "is_available": True,
+            "is_healthy_choice": False,
+            "image_url": "/static/images/sauce/mustard.png",
+        },
+        {
+            "name": "green sauce",
+            "category": "sauce",
+            "description": "mint sauce",
+            "price": 0.15,
+            "calories": 10,
+            "protein": 2,
+            "is_available": True,
+            "is_healthy_choice": False,
+            "image_url": "/static/images/sauce/green.png",
+        },
+    ]
+
+    for item in menu_data:
+        # Avoid duplicates
+        existing_item = MenuItem.query.filter_by(name=item["name"]).first()
+        if not existing_item:
+            new_item = MenuItem(**item)
+            db.session.add(new_item)
+
+    db.session.commit()
+    print(f"Successfully seeded {len(menu_data)} menu items into the database.")
+
+
+if __name__ == "__main__":
+    seed_menu_items()

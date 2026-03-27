@@ -1,0 +1,739 @@
+{% extends "base.html" %} {% block title %}{{ page_title if page_title is
+defined else 'Order History' }}{% endblock %} {% block content %} {% set
+header_title = page_title if page_title is defined else 'Your Order History' %}
+{% set manage_mode = manage_mode if manage_mode is defined else False %} {% set
+show_create_link = show_create_link if show_create_link is defined else False %}
+<h2>{{ header_title }}</h2>
+
+{% if orders %}
+<table>
+  <thead>
+    <tr>
+      <th>Order #</th>
+      <th>Date</th>
+      <th>Total</th>
+      <th>Status</th>
+      <th>Items Ordered</th>
+      <th>Actions</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for order in orders %} {% set base_style = "padding: 4px 10px;
+    border-radius: 4px; font-size: 0.9em; font-weight: bold;" %} {% set
+    status_style = base_style %} {% if order.status == 'Delivered' %} {% set
+    status_style = base_style ~ " background: #d4edda; color: #155724;" %} {%
+    elif order.status == 'Cancelled' %} {% set status_style = base_style ~ "
+    background: #f8d7da; color: #721c24;" %} {% elif order.status == 'Pending'
+    %} {% set status_style = base_style ~ " background: #fdf5e6; color:
+    #cc8400;" %} {% elif order.status == 'Preparing' %} {% set status_style =
+    base_style ~ " background: #cfe2ff; color: #084298;" %} {% elif order.status
+    == 'Ready for Pickup' %} {% set status_style = base_style ~ " background:
+    #fff3cd; color: #997404;" %} {% endif %}
+    <tr>
+      <td><strong>{{ order.id }}</strong></td>
+      <td>{{ order.ordered_at.strftime('%Y-%m-%d %H:%M') }}</td>
+      <td><strong>${{ "%.2f"|format(order.total_price) }}</strong></td>
+      <td>
+        <span class="status-span" style="{{ status_style }}">
+          {{ order.status }}
+        </span>
+      </td>
+      <td>
+        <ul>
+          {% for item in order.items.all() %}
+          <li style="font-size: 0.9em">
+            {{ item.quantity }} x {{ item.name }} (${{ "%.2f"|format(item.price)
+            }})
+          </li>
+          {% endfor %}
+        </ul>
+      </td>
+      {% if manage_mode %}
+      <td>
+        {% if status_flow.get(order.status) %} {% set next_status =
+        status_flow[order.status] %} {% set button_colors = {'Preparing':
+        '#084298', 'Ready for Pickup': '#997404', 'Delivered': '#155724'} %} {%
+        set status_icons = {'Preparing': '👨‍🍳', 'Ready for Pickup': '📦',
+        'Delivered': '✓'} %}
+        <button
+          type="button"
+          onclick="updateOrderStatus({{ order.id }}, '{{ next_status }}')"
+          style="
+          border: none;
+          background: {{ button_colors.get(next_status, '#6c757d') }};
+          color: white;
+          padding: 10px 16px;
+          border-radius: 6px;
+          cursor: pointer;
+          font-weight: bold;
+          font-size: 0.95em;
+          display: flex;
+          align-items: center;
+          gap: 6px;
+          transition: all 0.3s ease;
+          box-shadow: 0 2px 6px rgba(0,0,0,0.15);
+          white-space: nowrap;
+        "
+          onmouseover="this.style.boxShadow='0 4px 12px rgba(0,0,0,0.25)'; this.style.transform='translateY(-2px)';"
+          onmouseout="this.style.boxShadow='0 2px 6px rgba(0,0,0,0.15)'; this.style.transform='translateY(0)';"
+        >
+          <span style="font-size: 1.1em"
+            >{{ status_icons.get(next_status, '→') }}</span
+          >
+          {{ next_status }}
+        </button>
+        {% else %} {% if order.status == 'Delivered' %}
+        <span
+          style="
+            padding: 10px 16px;
+            border-radius: 6px;
+            font-size: 0.95em;
+            font-weight: bold;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            background: #d4edda;
+            color: #155724;
+          "
+        >
+          <span style="font-size: 1.1em">✓</span> Delivered
+        </span>
+        {% elif order.status == 'Cancelled' %}
+        <span
+          style="
+            padding: 10px 16px;
+            border-radius: 6px;
+            font-size: 0.95em;
+            font-weight: bold;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            background: #f8d7da;
+            color: #721c24;
+          "
+        >
+          <span style="font-size: 1.1em">✗</span> Cancelled
+        </span>
+        {% endif %} {% endif %}
+      </td>
+      {% else %}
+      <td>
+        <div style="display: flex; gap: 8px; flex-wrap: wrap">
+          <button
+            type="button"
+            class="admin-links"
+            style="
+              border: none;
+              background: #007bff;
+              color: white;
+              padding: 4px 10px;
+              border-radius: 4px;
+              cursor: pointer;
+            "
+            onclick="openStatusModal({{ order.id }}, '{{ order.status }}')"
+          >
+            View Flow
+          </button>
+          {% if order.status not in ['Delivered', 'Cancelled'] %}
+          <button
+            type="button"
+            class="admin-links"
+            onclick="cancelOrderRequest({{ order.id }})"
+            style="
+              border: none;
+              background: #dc3545;
+              color: white;
+              padding: 4px 10px;
+              border-radius: 4px;
+              cursor: pointer;
+            "
+          >
+            Cancel Order
+          </button>
+          {% else %}
+          <span style="color: #999; font-size: 0.9em">
+            {% if order.status == 'Delivered' %} Cannot cancel {% else %}
+            Already cancelled {% endif %}
+          </span>
+          {% endif %}
+        </div>
+      </td>
+      {% endif %}
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% else %}
+<p style="text-align: center; color: #999; margin-top: 40px; font-size: 1.1em">
+  {% if manage_mode %} No pending orders right now. {% else %} You have no
+  orders yet. {% endif %}
+</p>
+{% endif %} {% if show_create_link %}
+<div style="margin-top: 25px">
+  <a
+    href="{{ url_for('order.create_order_form') }}"
+    class="admin-links"
+    style="display: inline-block; text-decoration: none; color: white"
+  >
+    Create New Order
+  </a>
+</div>
+{% endif %}
+
+<!-- Status Flow Modal -->
+<div
+  id="statusFlowModal"
+  style="
+    display: none;
+    position: fixed;
+    z-index: 1000;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.5);
+  "
+  onclick="if(event.target === this) closeStatusModal()"
+>
+  <div
+    style="
+      background-color: white;
+      margin: 5% auto;
+      padding: 30px;
+      border-radius: 8px;
+      width: 85%;
+      max-width: 900px;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+    "
+  >
+    <div style="margin-bottom: 25px">
+      <h3 style="margin: 0">Order Status Journey</h3>
+    </div>
+
+    <!-- Status Flow Diagram with Arrows -->
+    <div class="flow-diagram-container">
+      <!-- Pending -->
+      <div id="flow-pending" class="flow-item">
+        <div class="flow-circle flow-circle--pending">📋</div>
+        <div class="flow-label">
+          <div class="flow-label-title">Pending</div>
+          <div class="flow-label-desc">Order Received</div>
+        </div>
+      </div>
+
+      <!-- Arrow 1 -->
+      <div class="flow-arrow">→</div>
+
+      <!-- Preparing -->
+      <div id="flow-preparing" class="flow-item">
+        <div class="flow-circle flow-circle--preparing">👨‍🍳</div>
+        <div class="flow-label">
+          <div class="flow-label-title">Preparing</div>
+          <div class="flow-label-desc">In Kitchen</div>
+        </div>
+      </div>
+
+      <!-- Arrow 2 -->
+      <div class="flow-arrow">→</div>
+
+      <!-- Ready for Pickup -->
+      <div id="flow-ready" class="flow-item">
+        <div class="flow-circle flow-circle--ready">📦</div>
+        <div class="flow-label">
+          <div class="flow-label-title">Ready for Pickup</div>
+          <div class="flow-label-desc">Waiting for You</div>
+        </div>
+      </div>
+
+      <!-- Arrow 3 -->
+      <div class="flow-arrow">→</div>
+
+      <!-- Delivered -->
+      <div id="flow-delivered" class="flow-item">
+        <div class="flow-circle flow-circle--delivered">✓</div>
+        <div class="flow-label">
+          <div class="flow-label-title">Delivered</div>
+          <div class="flow-label-desc">Completed</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Legend -->
+    <div class="flow-legend-container">
+      <div id="flowLegend"></div>
+    </div>
+  </div>
+</div>
+
+<style>
+  /* Color constants */
+  :root {
+    --color-pending-bg: linear-gradient(135deg, #fdf5e6 0%, #fff9f0 100%);
+    --color-pending-border: #cc8400;
+    --color-pending-shadow: 0 8px 24px rgba(204, 132, 0, 0.2);
+    --color-pending-glow: rgba(204, 132, 0, 0.4);
+    --color-pending-progress: #cc8400;
+
+    --color-preparing-bg: linear-gradient(135deg, #cfe2ff 0%, #e0eaff 100%);
+    --color-preparing-border: #084298;
+    --color-preparing-shadow: 0 8px 24px rgba(8, 66, 152, 0.2);
+    --color-preparing-glow: rgba(8, 66, 152, 0.4);
+    --color-preparing-progress: #084298;
+
+    --color-ready-bg: linear-gradient(135deg, #fff3cd 0%, #fffae6 100%);
+    --color-ready-border: #997404;
+    --color-ready-shadow: 0 8px 24px rgba(153, 116, 4, 0.2);
+    --color-ready-glow: rgba(153, 116, 4, 0.4);
+    --color-ready-progress: #997404;
+
+    --color-delivered-bg: linear-gradient(135deg, #d4edda 0%, #e8f5e9 100%);
+    --color-delivered-border: #155724;
+    --color-delivered-shadow: 0 8px 24px rgba(21, 87, 36, 0.2);
+    --color-delivered-glow: rgba(21, 87, 36, 0.4);
+    --color-delivered-progress: #155724;
+  }
+
+  /* Flow Diagram Container */
+  .flow-diagram-container {
+    position: relative;
+    padding: 50px 30px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 20px;
+    min-height: 180px;
+    background: linear-gradient(
+      180deg,
+      rgba(255, 255, 255, 0.5) 0%,
+      rgba(248, 249, 250, 0.5) 100%
+    );
+    border-radius: 16px;
+    backdrop-filter: blur(10px);
+  }
+
+  /* Flow Arrows */
+  .flow-arrow {
+    font-size: 32px;
+    color: #ddd;
+    transition: all 0.6s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+    flex-shrink: 0;
+    animation: arrowPulse 2s ease-in-out infinite;
+  }
+
+  @keyframes arrowPulse {
+    0%,
+    100% {
+      transform: translateX(0);
+      opacity: 0.7;
+    }
+    50% {
+      transform: translateX(4px);
+      opacity: 1;
+    }
+  }
+
+  /* Flow Items */
+  .flow-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 16px;
+    flex-shrink: 0;
+    position: relative;
+    z-index: 3;
+    transition: all 0.5s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+  }
+
+  /* Flow Circles - Base */
+  .flow-circle {
+    width: 100px;
+    height: 100px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 44px;
+    border: 3px solid;
+    transition: all 0.6s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+    flex-shrink: 0;
+    position: relative;
+  }
+
+  /* Glow effect for circles */
+  .flow-circle::before {
+    content: "";
+    position: absolute;
+    inset: -8px;
+    border-radius: 50%;
+    opacity: 0;
+    transition: opacity 0.6s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+  }
+
+  /* Flow Circle Variants */
+  .flow-circle--pending {
+    background: var(--color-pending-bg);
+    border-color: var(--color-pending-border);
+    box-shadow: var(--color-pending-shadow),
+      inset 0 2px 8px rgba(255, 255, 255, 0.6);
+  }
+
+  .flow-circle--pending::before {
+    background: radial-gradient(circle, var(--color-pending-glow), transparent);
+  }
+
+  .flow-circle--preparing {
+    background: var(--color-preparing-bg);
+    border-color: var(--color-preparing-border);
+    box-shadow: var(--color-preparing-shadow),
+      inset 0 2px 8px rgba(255, 255, 255, 0.6);
+  }
+
+  .flow-circle--preparing::before {
+    background: radial-gradient(
+      circle,
+      var(--color-preparing-glow),
+      transparent
+    );
+  }
+
+  .flow-circle--ready {
+    background: var(--color-ready-bg);
+    border-color: var(--color-ready-border);
+    box-shadow: var(--color-ready-shadow),
+      inset 0 2px 8px rgba(255, 255, 255, 0.6);
+  }
+
+  .flow-circle--ready::before {
+    background: radial-gradient(circle, var(--color-ready-glow), transparent);
+  }
+
+  .flow-circle--delivered {
+    background: var(--color-delivered-bg);
+    border-color: var(--color-delivered-border);
+    box-shadow: var(--color-delivered-shadow),
+      inset 0 2px 8px rgba(255, 255, 255, 0.6);
+  }
+
+  .flow-circle--delivered::before {
+    background: radial-gradient(
+      circle,
+      var(--color-delivered-glow),
+      transparent
+    );
+  }
+
+  /* Active/Enlarged circle glow */
+  @keyframes circlePulse {
+    0%,
+    100% {
+      transform: scale(1.25);
+      box-shadow: var(--color-pending-shadow),
+        inset 0 2px 8px rgba(255, 255, 255, 0.6);
+    }
+    50% {
+      transform: scale(1.35);
+      box-shadow: var(--color-pending-shadow),
+        inset 0 2px 8px rgba(255, 255, 255, 0.6),
+        0 0 20px var(--color-pending-glow);
+    }
+  }
+
+  .flow-circle.active {
+    animation: circlePulse 2s ease-in-out infinite;
+  }
+
+  /* Flow Labels */
+  .flow-label {
+    text-align: center;
+    transition: all 0.5s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+  }
+
+  .flow-label-title {
+    font-weight: 700;
+    font-size: 15px;
+    color: #222;
+    letter-spacing: 0.3px;
+    transition: all 0.5s ease;
+  }
+
+  .flow-label-desc {
+    font-size: 12px;
+    color: #888;
+    margin-top: 6px;
+    font-weight: 500;
+    letter-spacing: 0.2px;
+    transition: all 0.5s ease;
+  }
+
+  /* Legend Container */
+  .flow-legend-container {
+    margin-top: 8px;
+    padding: 6px 12px;
+    border-top: 1px solid #f0f0f0;
+    text-align: center;
+    color: #555;
+    font-size: 11px;
+    line-height: 1.3;
+    background: linear-gradient(
+      180deg,
+      rgba(255, 255, 255, 0.3) 0%,
+      rgba(248, 249, 250, 0.3) 100%
+    );
+    border-radius: 8px;
+    transition: all 0.5s ease;
+  }
+
+  /* Actions */
+  .flow-actions {
+    text-align: center;
+    margin-top: 30px;
+  }
+
+  .btn-close-modal {
+    border: none;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    padding: 12px 28px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: 600;
+    transition: all 0.3s ease;
+    box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+  }
+
+  .btn-close-modal:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 16px rgba(102, 126, 234, 0.6);
+  }
+
+  .btn-close-modal:active {
+    transform: translateY(0);
+  }
+
+  /* Mobile Responsive */
+  @media (max-width: 768px) {
+    #statusFlowModal > div {
+      width: 95%;
+      margin: 20% auto;
+      padding: 30px 15px 15px;
+    }
+
+    .flow-diagram-container {
+      flex-direction: column;
+      gap: 16px;
+      padding: 30px 15px;
+    }
+
+    .flow-arrow {
+      font-size: 24px;
+      transform: rotate(90deg);
+    }
+
+    .flow-item {
+      width: 100%;
+    }
+
+    .flow-circle {
+      width: 85px;
+      height: 85px;
+      font-size: 38px;
+    }
+
+    .flow-label-title {
+      font-size: 14px;
+    }
+
+    .flow-label-desc {
+      font-size: 11px;
+    }
+
+    .btn-close-modal {
+      padding: 10px 24px;
+      font-size: 13px;
+    }
+  }
+</style>
+
+<script>
+  const statusFlow = {
+    Pending: {
+      display: "Your order has been received and is waiting to be prepared",
+      icon: "📋",
+      nextStatuses: ["Preparing"],
+    },
+    Preparing: {
+      display: "Your order is being prepared in our kitchen",
+      icon: "👨‍🍳",
+      nextStatuses: ["Ready for Pickup"],
+    },
+    "Ready for Pickup": {
+      display: "Your order is ready! Come pick it up",
+      icon: "📦",
+      nextStatuses: ["Delivered"],
+    },
+    Delivered: {
+      display: "Your order has been delivered successfully",
+      icon: "✓",
+      nextStatuses: [],
+    },
+    Cancelled: {
+      display: "This order has been cancelled",
+      icon: "✗",
+      nextStatuses: [],
+    },
+  };
+
+  function openStatusModal(orderId, currentStatus) {
+    const modal = document.getElementById("statusFlowModal");
+    modal.style.display = "block";
+    updateStatusFlow(currentStatus);
+  }
+
+  function closeStatusModal() {
+    const modal = document.getElementById("statusFlowModal");
+    modal.style.display = "none";
+  }
+
+  function updateStatusFlow(currentStatus) {
+    const allStatuses = [
+      "Pending",
+      "Preparing",
+      "Ready for Pickup",
+      "Delivered",
+    ];
+    const currentIndex = allStatuses.indexOf(currentStatus);
+
+    const colorMap = {
+      Pending: "#cc8400",
+      Preparing: "#084298",
+      "Ready for Pickup": "#997404",
+      Delivered: "#155724",
+    };
+
+    // Update flow circles with enhanced animations
+    allStatuses.forEach((status, index) => {
+      const element = document.getElementById(`flow-${getFlowId(status)}`);
+      if (element) {
+        const circle = element.querySelector(".flow-circle");
+
+        if (index < currentIndex) {
+          // Completed statuses - full opacity
+          element.style.opacity = "1";
+          element.style.transform = "scale(1)";
+          if (circle) {
+            circle.classList.remove("active");
+            circle.style.transform = "scale(1)";
+            circle.style.filter = "none";
+          }
+        } else if (index === currentIndex) {
+          // Current status - apply active class for pulsing animation
+          element.style.opacity = "1";
+          element.style.transform = "scale(1)";
+          if (circle) {
+            circle.classList.add("active");
+            circle.style.filter = `drop-shadow(0 0 12px ${colorMap[status]})`;
+          }
+        } else {
+          // Future statuses - slightly faded
+          element.style.opacity = "0.6";
+          element.style.transform = "scale(1)";
+          if (circle) {
+            circle.classList.remove("active");
+            circle.style.transform = "scale(1)";
+            circle.style.filter = "none";
+          }
+        }
+      }
+    });
+
+    // Update arrows - color completed ones
+    const arrows = document.querySelectorAll(".flow-arrow");
+    arrows.forEach((arrow, index) => {
+      if (index < currentIndex) {
+        arrow.style.color = colorMap[allStatuses[index]];
+        arrow.style.opacity = "1";
+      } else {
+        arrow.style.color = "#ddd";
+        arrow.style.opacity = "0.6";
+      }
+    });
+
+    // Update legend with emoji and description
+    const legend = document.getElementById("flowLegend");
+    if (statusFlow[currentStatus]) {
+      legend.innerHTML = `<strong>📍 Current Status:</strong> <em style="color: ${colorMap[currentStatus]}; font-weight: 600;">${currentStatus}</em> — ${statusFlow[currentStatus].display}`;
+    } else if (currentStatus === "Cancelled") {
+      legend.innerHTML = `<strong>⚠️ Status:</strong> <em style="color: #721c24; font-weight: 600;">Cancelled</em> — This order has been cancelled`;
+    }
+  }
+
+  function getFlowId(status) {
+    const mapping = {
+      Pending: "pending",
+      Preparing: "preparing",
+      "Ready for Pickup": "ready",
+      Delivered: "delivered",
+    };
+    return mapping[status] || status.toLowerCase();
+  }
+
+  // Close modal on Escape key
+  document.addEventListener("keydown", function (event) {
+    if (event.key === "Escape") {
+      closeStatusModal();
+    }
+  });
+
+  function updateOrderStatus(orderId, newStatus) {
+    fetch("/status/update", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        order_id: orderId,
+        status: newStatus,
+      }),
+    })
+      .then((response) => response.json())
+      .then((data) => {
+        if (data.success) {
+          alert("Order status updated to " + newStatus);
+          location.reload();
+        } else {
+          alert("Error: " + data.message);
+        }
+      })
+      .catch((error) => {
+        console.error("Error:", error);
+        alert("An error occurred while updating the order status.");
+      });
+  }
+
+  function cancelOrderRequest(orderId) {
+    if (confirm("Are you sure you want to cancel this order?")) {
+      fetch("/status/cancel/" + orderId, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+      })
+        .then((response) => response.json())
+        .then((data) => {
+          if (data.success) {
+            alert("Order cancelled successfully");
+            location.reload();
+          } else {
+            alert("Error: " + data.message);
+          }
+        })
+        .catch((error) => {
+          console.error("Error:", error);
+          alert("An error occurred while cancelling the order.");
+        });
+    }
+  }
+</script>
+
+{% endblock %}

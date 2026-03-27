@@ -1,0 +1,72 @@
+{% extends "base.html" %}
+{% block title %}Our Fresh Ingredients{% endblock %}
+{% block content %}
+<h2>🍔 Our Fresh Ingredients</h2>
+<p>Build your perfect burger with our premium, fresh ingredients! All items are available for customization.</p>
+
+{% if categorized_items %}
+  {% for category, items in categorized_items.items() %}
+  <div style="margin-top: 30px;">
+    <h3 style="color: var(--primary-color); border-bottom: 2px solid var(--primary-color); padding-bottom: 10px; text-transform: capitalize;">
+      {{ category }}s
+    </h3>
+    
+    <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 20px; margin-top: 20px;">
+      {% for item in items %}
+      <div style="border: 1px solid var(--border-color); border-radius: 8px; padding: 20px; background: white; box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05); transition: transform 0.2s, box-shadow 0.2s;">
+        <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 10px;">
+          <h4 style="margin: 0; color: var(--primary-dark); font-size: 1.2em;">{{ item.name }}</h4>
+          {% if item.is_healthy_choice %}
+          <span style="background: #d1f2eb; color: #0c5460; padding: 4px 8px; border-radius: 4px; font-size: 0.75em; font-weight: bold;">
+            💚 Healthy
+          </span>
+          {% endif %}
+        </div>
+        
+        {% if item.description %}
+        <p style="color: #666; font-size: 0.9em; margin: 10px 0;">{{ item.description }}</p>
+        {% endif %}
+        
+        <div style="margin-top: 15px; padding-top: 15px; border-top: 1px solid var(--border-color);">
+          <div style="display: flex; justify-content: space-between; align-items: center;">
+            <span style="font-size: 1.3em; color: var(--primary-color); font-weight: bold;">
+              ${{ "%.2f"|format(item.price) }}
+            </span>
+            <div style="font-size: 0.85em; color: #666; text-align: right;">
+              {% if item.calories %}
+              <div>{{ item.calories }} cal</div>
+              {% endif %}
+              {% if item.protein %}
+              <div>{{ item.protein }}g protein</div>
+              {% endif %}
+            </div>
+          </div>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+  {% endfor %}
+
+  <div style="margin-top: 40px; text-align: center; padding: 30px; background: linear-gradient(135deg, var(--primary-color) 0%, #f7c978 100%); border-radius: 8px; color: white;">
+    <h3 style="margin-top: 0;">Ready to Build Your Burger?</h3>
+    <p style="font-size: 1.1em; margin-bottom: 20px;">Sign up to start creating your custom burger with our fresh ingredients!</p>
+    {% if not current_user.is_authenticated %}
+    <a href="{{ url_for('auth.register') }}" style="background: white; color: var(--primary-color); padding: 12px 30px; text-decoration: none; border-radius: 6px; font-weight: bold; display: inline-block; transition: transform 0.2s;">
+      Get Started
+    </a>
+    {% else %}
+    <a href="{{ url_for('order.create_order_form') }}" style="background: white; color: var(--primary-color); padding: 12px 30px; text-decoration: none; border-radius: 6px; font-weight: bold; display: inline-block; transition: transform 0.2s;">
+      Create Your Burger
+    </a>
+    {% endif %}
+  </div>
+
+{% else %}
+<div style="margin-top: 40px; padding: 40px; border: 2px dashed var(--border-color); border-radius: 8px; text-align: center;">
+  <h3 style="color: #999;">No Ingredients Available Yet</h3>
+  <p style="color: #999;">Check back soon! We're stocking up on fresh ingredients.</p>
+</div>
+{% endif %}
+
+{% endblock %}
